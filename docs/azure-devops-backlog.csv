@@ -1,0 +1,45 @@
+Epic,Feature,Story,Priority,Story Points,Sprint,Owner,Dependencies,Risk
+Product Catalogue,Browse & Discover,US-E1-01 — Browse Products by Category,P0,5,Sprint 1,TBD,None,Low
+Product Catalogue,Browse & Discover,US-E1-02 — View Product Detail Page,P0,5,Sprint 1,TBD,US-E1-01,Low
+Product Catalogue,Browse & Discover,US-E1-03 — Search Products,P1,3,Sprint 1,TBD,US-E1-01,Low
+Product Catalogue,Browse & Discover,US-E1-04 — Filter and Sort Products,P1,5,Sprint 2,TBD,US-E1-01,Low
+Product Catalogue,Admin Product Management,US-E1-05 — Admin Product CRUD,P0,8,Sprint 2,TBD,US-E1-01,Medium
+Inventory Tracking,Stock Management,US-E6-01 — Automatic Stock Deduction,P0,5,Sprint 2,TBD,US-E4-05,High
+Inventory Tracking,Stock Management,US-E6-02 — Out-of-Stock Display,P0,3,Sprint 3,TBD,US-E6-01,Low
+Inventory Tracking,Stock Management,US-E6-03 — Admin Stock Adjustment,P1,3,Sprint 3,TBD,US-E1-05,Low
+Inventory Tracking,Stock Management,US-E6-04 — Low-Stock Alert,P1,3,Sprint 3,TBD,US-E6-01,Low
+User Authentication & Accounts,Registration & Login,US-E2-01 — Register with Email & Password,P0,5,Sprint 3,TBD,None,Low
+User Authentication & Accounts,Registration & Login,US-E2-02 — Log In with Email & Password,P0,5,Sprint 4,TBD,US-E2-01,Low
+User Authentication & Accounts,Registration & Login,US-E2-03 — Social Login via OAuth,P2,8,Sprint 4,TBD,US-E2-01,Medium
+User Authentication & Accounts,Account Management,US-E2-04 — Password Reset,P1,5,Sprint 4,TBD,US-E2-01,Low
+User Authentication & Accounts,Account Management,US-E2-05 — Manage Profile,P1,3,Sprint 4,TBD,US-E2-01,Low
+User Authentication & Accounts,Session Management,US-E2-06 — JWT Token Refresh,P0,3,Sprint 5,TBD,US-E2-02,Medium
+Shopping Cart,Cart Operations,US-E3-01 — Add Items to Cart,P0,5,Sprint 5,TBD,US-E1-02; US-E2-02,Low
+Shopping Cart,Cart Operations,US-E3-02 — Update Cart Quantities,P0,3,Sprint 5,TBD,US-E3-01,Low
+Shopping Cart,Cart Operations,US-E3-03 — Remove Items from Cart,P0,2,Sprint 5,TBD,US-E3-01,Low
+Shopping Cart,Cart Operations,US-E3-04 — View Cart Summary,P0,3,Sprint 5,TBD,US-E3-01,Low
+Checkout & Payments,Checkout Flow,US-E4-01 — Enter Shipping Address,P0,3,Sprint 5,TBD,US-E2-02; US-E3-04,Low
+Checkout & Payments,Checkout Flow,US-E4-02 — Review Order Summary,P0,3,Sprint 6,TBD,US-E4-01,Low
+Checkout & Payments,Payment Processing,US-E4-03 — Pay via Stripe Checkout Session,P0,8,Sprint 6,TBD,US-E4-02,High
+Checkout & Payments,Payment Processing,US-E4-04 — Receive Order Confirmation,P0,3,Sprint 6,TBD,US-E4-03,Low
+Checkout & Payments,Payment Processing,US-E4-05 — Stripe Webhook Order Processing,P0,8,Sprint 6,TBD,US-E4-03,High
+Order Management,Customer Order Views,US-E5-01 — View Order History,P1,3,Sprint 7,TBD,US-E4-05,Low
+Order Management,Customer Order Views,US-E5-02 — View Order Detail,P1,3,Sprint 7,TBD,US-E5-01,Low
+Order Management,Admin Order Operations,US-E5-03 — Admin Order List & Filter,P0,5,Sprint 7,TBD,US-E4-05,Low
+Order Management,Admin Order Operations,US-E5-04 — Update Order Status,P0,3,Sprint 7,TBD,US-E5-03,Low
+Order Management,Admin Order Operations,US-E5-05 — Process Refund,P1,5,Sprint 7,TBD,US-E5-04; US-E12-01,Medium
+Product Reviews,Customer Reviews,US-E7-01 — Read Reviews on Product Page,P1,3,Sprint 7,TBD,US-E1-02,Low
+Product Reviews,Customer Reviews,US-E7-02 — Submit a Review,P1,5,Sprint 8,TBD,US-E7-01; US-E2-02,Low
+Product Reviews,Admin Moderation,US-E7-03 — Moderate Reviews (Admin),P1,3,Sprint 8,TBD,US-E7-02,Low
+Admin Dashboard,Dashboard & Metrics,US-E8-01 — Dashboard Overview Metrics,P1,5,Sprint 8,TBD,US-E1-05; US-E5-03,Low
+Admin Dashboard,User Management,US-E8-02 — User Management,P1,5,Sprint 8,TBD,US-E2-01,Low
+Content Marketing & Blog,Customer Blog,US-E9-01 — Browse Blog Articles,P2,3,Sprint 8,TBD,None,Low
+Content Marketing & Blog,Customer Blog,US-E9-02 — Read Blog Article,P2,3,Sprint 9,TBD,US-E9-01,Low
+Content Marketing & Blog,Admin Blog Management,US-E9-03 — Admin Blog CRUD,P2,5,Sprint 9,TBD,US-E9-01,Low
+Transactional Emails,Email Templates,US-E10-01 — Order Confirmation Email,P0,3,Sprint 6,TBD,US-E4-05,Low
+Transactional Emails,Email Templates,US-E10-02 — Shipping Notification Email,P1,3,Sprint 9,TBD,US-E5-04,Low
+Transactional Emails,Email Templates,US-E10-03 — Password Reset Email,P1,3,Sprint 9,TBD,US-E2-04,Low
+Multi-Currency & International Shipping,Currency,US-E11-01 — Multi-Currency Display,P2,5,Sprint 9,TBD,US-E1-02,Medium
+Multi-Currency & International Shipping,Shipping,US-E11-02 — International Shipping Address,P2,5,Sprint 10,TBD,US-E4-01,Medium
+Custom Payment Methods,Refunds,US-E12-01 — Stripe Refund Integration,P1,5,Sprint 10,TBD,US-E5-04,Medium
+Custom Payment Methods,Gateway Abstraction,US-E12-02 — Extensible Payment Gateway Abstraction,P2,8,Sprint 10,TBD,US-E4-03,High
