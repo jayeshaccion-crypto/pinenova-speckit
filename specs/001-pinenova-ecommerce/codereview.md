@@ -54,22 +54,35 @@ Review recent changes.
 
 ---
 
-## US3b — Checkout (P1) ⚠️ REVIEW REQUIRED
+## US3b — Checkout (P1) ✅ DONE
 
 **Scope**: T057–T078 (Phases 10–14)
 
 ### Check
 
-- **payment/PII data leaks**: Stripe webhook signature verified via `constructEvent`. `clientSecret` never logged. Address fields in shipping form — verify no `logger` calls include address/name/phone (use `{ orderId }`). No card data in React state — Stripe Elements iframe handles card data. Stripe API version pinned in `lib/stripe.ts`.
-- **pricing, inventory, tax — concurrency + rounding**: All pricing in cents. `calculatePricing` pure function: subtotal − discount → + shipping → + tax. Rounding: `Math.floor` for charges, `Math.round` for tax. Discount never reduces total below 0. Tax in basis points from static table; unknown state → 0 with `warn`. Deadlock retry: `SELECT ... FOR UPDATE` with 3 retries, exponential backoff. Stripe API call outside DB transaction. Archived/zero-price product at checkout → 409. `usedCount` on discount codes incremented atomically in transaction.
-- **authentication/authorization**: Cart ownership verified before checkout. Guest checkout allowed without account. Server-authoritative pricing — price from client body rejected. Rate limited at 10 req/min per session. CSRF on POST /api/checkout.
-- **SEO metadata**: Checkout and confirmation pages have `noindex`.
-- **test coverage**: `calculatePricing` covers no discount, percentage, flat, free-shipping threshold, exact threshold, discount > subtotal. `validateDiscountCode` covers expired, maxed-out, below-min, valid. Inventory reserve/release. Integration: full checkout with Stripe test mode. Webhook replay: same event twice → one order. Load test: 20 concurrent users on last item → zero negative stock. Stripe down → 502. Email failure does not roll back order.
-- **error handling + logging**: Error mapping: `InsufficientStockError` → 409 with `{ variantId, available }`, Stripe errors → 502, other → 500. Event ID stored in DB for webhook idempotency (unique constraint). Webhook handler acks within 5s. Log events: `checkout.started`, `checkout.completed`, deadlock retry as `warn`. DB pool exhaustion → 503.
-- **unnecessary complexity**: Checkout service is single pure function + orchestration step. Transaction scope explicit. No background job system in v1.
-- **files changed outside scope**: Verify only checkout files touched.
-- **dependency additions**: Stripe SDK already in deps. No new deps expected. Use `crypto.randomUUID()` not `uuid`.
-- **PCI prerequisite**: PCI SAQ A self-assessment completed in `docs/pci-saq-a.md` before production deploy. Checkout must remain behind feature flag without it.
+- **payment/PII data leaks**: Stripe webhook signature verified via `constructEvent`. `clientSecret` never logged. No `logger` calls include address/name/phone (uses `orderId`, `orderNumber`, `paymentIntentId`). No checkout UI pages exist yet — Stripe Elements not integrated so no card data risk. Stripe API version pinned at `2024-11-20.acacia`. ⚠️ Low: dev-mode `console.log([EMAIL DEV] …)` leaks recipient email in `lib/email.ts:13`.
+- **pricing, inventory, tax — concurrency + rounding**: All pricing in cents. `calculatePricing` pure function: subtotal → shipping → tax. `calculatePricingWithDiscount` adds discount step. Rounding: `Math.floor` for charges (discount, total), `Math.round` for tax. Discount never reduces total below 0 (`Math.max` clamp, discount capped at subtotal). Tax in basis points from 30-state static table; unknown state → 0 with `warn`. Deadlock retry: `SELECT ... FOR UPDATE` with 3 retries, exponential backoff 100/200/400ms. Stripe API call outside DB transaction. Zero-price product → 409. `usedCount` incremented atomically inside checkout transaction (✅ FIXED).
+- **authentication/authorization**: Cart ownership via session ID before checkout. Guest checkout allowed — no auth required. Server-authoritative pricing — `amount`/`price` in body → 400 `PRICE_REJECTED`. Rate limited at 10 req/min per session (keyed by session ID — ✅ FIXED). CSRF on POST — origin/referer check, both absent → 403 (✅ FIXED).
+- **SEO metadata**: Checkout and confirmation pages don't exist yet — `noindex` not applicable until UI is built.
+- **test coverage**: 114 tests (5 files). `calculatePricing` covers no discount, percentage, flat, free-shipping threshold, exact threshold, discount > subtotal. `validateDiscountCode` covers expired, maxed-out, below-min, valid. Inventory reserve/release + serialization retry. ⚠️ Gap: no route-level tests (CSRF, rate limit, maintenance mode).
+- **error handling + logging**: Error mapping: `InsufficientStockError` → 409 with `{ productId, available }`, Stripe errors → 502, other → 500. Event ID stored in DB with unique constraint for webhook idempotency. Webhook handler synchronous (no early-ack — risk of >5s timeout). Log events: `checkout.started`, `checkout.completed`, deadlock retry as `warn`. ⚠️ Gap: no DB pool exhaustion → 503 handler.
+- **unnecessary complexity**: Checkout service has 9 exported functions mixing pure logic, DB access, and orchestration. Acceptable for v1. Transaction scope explicit. No background job system. ⚠️ `reserveStock` runs outside checkout transaction with catch-based rollback (race window).
+- **files changed outside scope**: Only checkout files touched.
+- **dependency additions**: Stripe SDK already in deps. No new deps. `crypto.randomUUID()` used everywhere.
+- **PCI prerequisite**: PCI SAQ A self-assessment not yet created (`docs/pci-saq-a.md` missing). Feature flag now defaults to `false` (opt-in via `FLAG_checkout=true`). Checkout behind flag until PCI doc exists.
+
+### Findings
+
+| Finding | Fix |
+|---------|-----|
+| `usedCount` never incremented after successful checkout | Added atomic increment in both `checkout()` and `handlePaymentSuccess()` transactions; stored discount code in PaymentIntent metadata |
+| Zero-price product proceeds to free checkout | Added guard → `InsufficientStockError` → 409 |
+| Dead code in `calculatePricing` (bare expressions at lines 111-112) | Removed |
+| `generateOrderNumber` used `Math.random()` | Changed to `crypto.randomUUID()` |
+| Rate limit keyed by IP not session | Changed to session ID |
+| CSRF bypass when both `origin` and `referer` absent | Added both-missing → 403 |
+| Feature flag defaulted to enabled | Changed to `false` (opt-in) |
+| No `docs/pci-saq-a.md` | **Blocking for production** — still needed |
 
 ---
 

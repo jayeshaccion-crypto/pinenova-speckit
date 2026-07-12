@@ -28,26 +28,26 @@ export function ProductFilters({ filters, onFilterChange }: ProductFiltersProps)
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">Category</h3>
+        <h3 className="text-sm font-semibold text-foreground">Category</h3>
         <div className="mt-2 space-y-2">
-          <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-foreground/60 cursor-pointer">
             <input
               type="radio"
               name="category"
               checked={!filters.category}
               onChange={() => update("category", "")}
-              className="accent-neutral-900"
+              className="accent-primary"
             />
             All Categories
           </label>
           {CATEGORIES.map((cat) => (
-            <label key={cat.slug} className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+            <label key={cat.slug} className="flex items-center gap-2 text-sm text-foreground/60 cursor-pointer">
               <input
                 type="radio"
                 name="category"
                 checked={filters.category === cat.slug}
                 onChange={() => update("category", cat.slug)}
-                className="accent-neutral-900"
+                className="accent-primary"
               />
               {cat.name}
             </label>
@@ -56,26 +56,26 @@ export function ProductFilters({ filters, onFilterChange }: ProductFiltersProps)
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">Material</h3>
+        <h3 className="text-sm font-semibold text-foreground">Material</h3>
         <div className="mt-2 space-y-2">
-          <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-foreground/60 cursor-pointer">
             <input
               type="radio"
               name="material"
               checked={!filters.material}
               onChange={() => update("material", "")}
-              className="accent-neutral-900"
+              className="accent-primary"
             />
             All Materials
           </label>
           {MATERIALS.map((mat) => (
-            <label key={mat} className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+            <label key={mat} className="flex items-center gap-2 text-sm text-foreground/60 cursor-pointer">
               <input
                 type="radio"
                 name="material"
                 checked={filters.material === mat}
                 onChange={() => update("material", mat)}
-                className="accent-neutral-900"
+                className="accent-primary"
               />
               {mat}
             </label>
@@ -84,11 +84,11 @@ export function ProductFilters({ filters, onFilterChange }: ProductFiltersProps)
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">Sort By</h3>
+        <h3 className="text-sm font-semibold text-foreground">Sort By</h3>
         <select
           value={filters.sort}
           onChange={(e) => update("sort", e.target.value)}
-          className="mt-2 block w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+          className="input-field mt-2"
         >
           {SORT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>

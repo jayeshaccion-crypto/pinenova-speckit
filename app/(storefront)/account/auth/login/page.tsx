@@ -1,0 +1,91 @@
+"use client";
+
+import { Suspense, useState, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/account";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error?.message || "Login failed");
+        return;
+      }
+
+      localStorage.setItem("accessToken", data.accessToken);
+      document.cookie = `accessToken=${data.accessToken}; path=/; max-age=${60 * 15}; SameSite=Lax`;
+
+      router.push(redirect);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-md px-4 py-16">
+      <h1 className="mb-8 text-center text-2xl font-bold text-foreground">Sign In</h1>
+
+      {searchParams.get("registered") && (
+        <p className="mb-4 rounded bg-green-50 p-3 text-center text-sm text-green-700">
+          Account created successfully. Please sign in.
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">Email</label>
+          <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+            className="input-field w-full" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label htmlFor="password" className="mb-1 block text-sm font-medium text-foreground">Password</label>
+          <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+            className="input-field w-full" placeholder="Your password" />
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button type="submit" disabled={loading}
+          className="btn-primary w-full py-2 disabled:opacity-50">
+          {loading ? "Signing in..." : "Sign In"}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center text-sm text-muted-foreground">
+        <Link href="/account/reset-password" className="text-primary hover:underline">Forgot password?</Link>
+        <span className="mx-2">|</span>
+        <Link href="/account/auth/register" className="text-primary hover:underline">Create account</Link>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md px-4 py-16 text-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}

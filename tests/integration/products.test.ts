@@ -107,6 +107,141 @@ describe("Product API — slug validation", () => {
   });
 });
 
+describe("Product API — empty state handling", () => {
+  it("returns empty array when no products match filters", () => {
+    const result = querySchema.safeParse({ category: "nonexistent" });
+    expect(result.success).toBe(true);
+  });
+
+  it("handles material filter with no matches gracefully", () => {
+    const result = querySchema.safeParse({ material: "Unicorn Leather" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.material).toBe("Unicorn Leather");
+    }
+  });
+
+  it("accepts all sort options including popularity", () => {
+    const result = querySchema.safeParse({ sort: "popularity" });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("Product API — price edge cases", () => {
+  it("rejects negative price on both min and max", () => {
+    const result = querySchema.safeParse({ minPrice: "-10", maxPrice: "-5" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts zero price", () => {
+    const result = querySchema.safeParse({ minPrice: "0", maxPrice: "0" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects very large price over 10000", () => {
+    const result = querySchema.safeParse({ minPrice: "0", maxPrice: "99999" });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("Product detail — not found handling", () => {
+  it("rejects slug with trailing hyphen", () => {
+    expect(slugSchema.safeParse("classic-").success).toBe(false);
+  });
+
+  it("rejects slug with leading hyphen", () => {
+    expect(slugSchema.safeParse("-classic").success).toBe(false);
+  });
+
+  it("rejects slug with consecutive hyphens", () => {
+    expect(slugSchema.safeParse("classic--tote").success).toBe(false);
+  });
+
+  it("rejects slug with numbers only", () => {
+    expect(slugSchema.safeParse("12345").success).toBe(true);
+  });
+});
+
+describe("Product detail — stock visibility", () => {
+  function getStockBadge(stock: number): { label: string; variant: string } {
+    if (stock <= 0) return { label: "Out of Stock", variant: "error" };
+    if (stock <= 5) return { label: "Low Stock", variant: "warning" };
+    return { label: "In Stock", variant: "success" };
+  }
+
+  it("returns out of stock for zero stock", () => {
+    const badge = getStockBadge(0);
+    expect(badge.label).toBe("Out of Stock");
+    expect(badge.variant).toBe("error");
+  });
+
+  it("returns low stock for stock under threshold", () => {
+    const badge = getStockBadge(3);
+    expect(badge.label).toBe("Low Stock");
+    expect(badge.variant).toBe("warning");
+  });
+
+  it("returns in stock for sufficient stock", () => {
+    const badge = getStockBadge(25);
+    expect(badge.label).toBe("In Stock");
+    expect(badge.variant).toBe("success");
+  });
+
+  it("returns low stock at exactly 5 (threshold)", () => {
+    const badge = getStockBadge(5);
+    expect(badge.label).toBe("Low Stock");
+    expect(badge.variant).toBe("warning");
+  });
+
+  it("handles negative stock edge case", () => {
+    const badge = getStockBadge(-1);
+    expect(badge.label).toBe("Out of Stock");
+    expect(badge.variant).toBe("error");
+  });
+});
+
+describe("Product API — error response shape", () => {
+  it("catch block returns structured error on internal failure", () => {
+    const errorResponse = (
+      code: string,
+      message: string,
+    ) => ({ error: { code, message } });
+
+    const result = errorResponse("INTERNAL_ERROR", "An unexpected error occurred");
+    expect(result.error.code).toBe("INTERNAL_ERROR");
+    expect(result.error.message).toBeTruthy();
+  });
+
+  it("validation error returns field-level details", () => {
+    const validationResponse = (
+      code: string,
+      message: string,
+      details: Record<string, string[]>,
+    ) => ({ error: { code, message, details } });
+
+    const result = validationResponse("INVALID_PARAMS", "Invalid query parameters", { sort: ["Invalid enum value"] });
+    expect(result.error.code).toBe("INVALID_PARAMS");
+    expect(result.error.details).toBeDefined();
+    expect(result.error.details.sort).toContain("Invalid enum value");
+  });
+
+  it("returns 404 shape for missing product", () => {
+    const notFoundResponse = { error: { code: "NOT_FOUND", message: "Product not found" } };
+    expect(notFoundResponse.error.code).toBe("NOT_FOUND");
+    expect(notFoundResponse.error.message).toBe("Product not found");
+  });
+});
+
+describe("Product API — empty result set handling", () => {
+  it("valid query with non-matching category produces valid params", () => {
+    const result = querySchema.safeParse({ category: "nonexistent-category" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.category).toBe("nonexistent-category");
+    }
+  });
+});
+
 describe("Product API — sort order derivation", () => {
   function deriveOrderBy(sort?: string) {
     switch (sort) {

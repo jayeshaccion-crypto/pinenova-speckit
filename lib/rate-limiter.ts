@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 
-const AUTH_WINDOW_MS = 15 * 60 * 1000;
-const AUTH_MAX_ATTEMPTS = 5;
-
 export function checkRateLimit(ip: string, limit: number = 100, windowMs: number = 60000): boolean {
   const now = Date.now();
   const record = requestCounts.get(ip);
@@ -22,17 +19,17 @@ export function checkRateLimit(ip: string, limit: number = 100, windowMs: number
   return true;
 }
 
-export function checkAuthRateLimit(identifier: string): boolean {
+export function checkAuthRateLimit(identifier: string, maxAttempts: number = 5, windowMs: number = 900000): boolean {
   const now = Date.now();
   const key = `auth:${identifier}`;
   const record = requestCounts.get(key);
 
   if (!record || now > record.resetAt) {
-    requestCounts.set(key, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+    requestCounts.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
 
-  if (record.count >= AUTH_MAX_ATTEMPTS) {
+  if (record.count >= maxAttempts) {
     return false;
   }
 

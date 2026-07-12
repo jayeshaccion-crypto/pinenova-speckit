@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAccessToken } from "./auth";
+import { logger } from "./logger";
 
 export async function getAuthUser(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -42,7 +43,30 @@ export function apiSuccess<T>(data: T, status: number = 200) {
 }
 
 export function handleApiError(error: unknown, context: string) {
-  const { logger } = require("./logger");
   logger.error({ error, context }, "API Error");
   return apiError("INTERNAL_ERROR", "An unexpected error occurred", 500);
+}
+
+export function checkCSRF(request: Request): NextResponse | null {
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const allowedOrigin = new URL(appUrl).origin;
+  if (!origin && !referer) {
+    return apiError("CSRF_REJECTED", "Request origin or referer required", 403);
+  }
+  if (origin && origin !== allowedOrigin) {
+    return apiError("CSRF_REJECTED", "Invalid request origin", 403);
+  }
+  if (!origin && referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (refererOrigin !== allowedOrigin) {
+        return apiError("CSRF_REJECTED", "Invalid request referer", 403);
+      }
+    } catch {
+      return apiError("CSRF_REJECTED", "Invalid referer header", 403);
+    }
+  }
+  return null;
 }

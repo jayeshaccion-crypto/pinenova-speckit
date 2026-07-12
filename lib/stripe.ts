@@ -11,7 +11,7 @@ if (!webhookSecret) {
 }
 
 export const stripe = new Stripe(stripeKey, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-02-24.acacia",
   typescript: true,
 });
 
@@ -49,5 +49,28 @@ export async function createRefund(paymentIntentId: string, amount?: number) {
 }
 
 export function constructWebhookEvent(payload: Buffer | string, sig: string) {
-  return stripe.webhooks.constructEvent(payload, sig, webhookSecret);
+  return stripe.webhooks.constructEvent(payload, sig, webhookSecret!);
+}
+
+export async function createPaymentIntent(params: {
+  amount: number;
+  currency?: string;
+  customerId?: string;
+  idempotencyKey: string;
+  metadata?: Record<string, string>;
+}) {
+  return stripe.paymentIntents.create(
+    {
+      amount: params.amount,
+      currency: params.currency || "usd",
+      customer: params.customerId,
+      metadata: params.metadata,
+      automatic_payment_methods: { enabled: true },
+    },
+    { idempotencyKey: params.idempotencyKey },
+  );
+}
+
+export async function retrievePaymentIntent(paymentIntentId: string) {
+  return stripe.paymentIntents.retrieve(paymentIntentId);
 }

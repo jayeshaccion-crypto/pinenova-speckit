@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { ProductGrid } from "@/components/ProductGrid";
-import Link from "next/link";
+import { ProductsFilterBar } from "@/components/ProductsFilterBar";
+import { Suspense } from "react";
 
 interface ProductsPageProps {
   searchParams: { category?: string; material?: string; sort?: string; page?: string };
 }
+
+export const revalidate = 60;
 
 export async function generateMetadata({ searchParams }: ProductsPageProps): Promise<Metadata> {
   const title = searchParams.category
@@ -14,10 +17,11 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
   return {
     title,
     description: `Browse our ${title.toLowerCase()} — sustainable vegan leather accessories from PineNova.`,
+    alternates: { canonical: "/products" },
   };
 }
 
-async function getProducts(params: Record<string, string>) {
+async function getProducts(params: Record<string, string | undefined>) {
   const where: any = { published: true };
   const page = Math.max(1, parseInt(params.page || "1", 10) || 1);
   const limit = 20;
@@ -57,16 +61,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-baseline justify-between border-b border-neutral-200 pb-4">
+      <div className="flex items-baseline justify-between border-b border-primary/10 pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{title}</h1>
-          <p className="mt-1 text-sm text-neutral-500">{data.total} product{data.total !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+          <p className="mt-1 text-sm text-foreground/50">{data.total} product{data.total !== 1 ? "s" : ""}</p>
         </div>
-        <Link href="/products" className="text-sm text-neutral-600 hover:text-neutral-900">
-          {searchParams.category || searchParams.material ? "Clear Filters" : ""}
-        </Link>
       </div>
-      <ProductGrid products={data.products} />
+      <div className="mt-8 grid gap-8 lg:grid-cols-4">
+        <aside className="lg:col-span-1">
+          <Suspense fallback={<div className="text-sm text-neutral-500">Loading filters...</div>}>
+            <ProductsFilterBar />
+          </Suspense>
+        </aside>
+        <div className="lg:col-span-3">
+          <ProductGrid products={data.products} />
+        </div>
+      </div>
     </div>
   );
 }

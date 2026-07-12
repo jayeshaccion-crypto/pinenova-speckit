@@ -15,9 +15,22 @@ if (!JWT_REFRESH_SECRET_ENV) {
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_ENV);
 const JWT_REFRESH_SECRET = new TextEncoder().encode(JWT_REFRESH_SECRET_ENV);
 
-const ACCESS_TOKEN_TTL = "15m";
-const REFRESH_TOKEN_TTL = "7d";
+const ACCESS_TOKEN_TTL = process.env.JWT_ACCESS_TTL || "15m";
+const REFRESH_TOKEN_TTL = process.env.JWT_REFRESH_TTL || "7d";
 const BCRYPT_ROUNDS = 12;
+
+function parseDuration(duration: string): number {
+  const match = duration.match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const value = parseInt(match[1], 10);
+  switch (match[2]) {
+    case "s": return value * 1000;
+    case "m": return value * 60 * 1000;
+    case "h": return value * 60 * 60 * 1000;
+    case "d": return value * 24 * 60 * 60 * 1000;
+    default: return 7 * 24 * 60 * 60 * 1000;
+  }
+}
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -42,7 +55,8 @@ export async function signRefreshToken(userId: string): Promise<string> {
     .setExpirationTime(REFRESH_TOKEN_TTL)
     .sign(JWT_REFRESH_SECRET);
 
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const refreshTtlMs = parseDuration(REFRESH_TOKEN_TTL);
+  const expiresAt = new Date(Date.now() + refreshTtlMs);
   const tokenHash = await bcrypt.hash(token, 10);
 
   await prisma.refreshToken.create({
@@ -101,4 +115,23 @@ export async function invalidateRefreshToken(token: string): Promise<void> {
 
 export async function clearUserRefreshTokens(userId: string): Promise<void> {
   await prisma.refreshToken.deleteMany({ where: { userId } });
+}
+
+export async function signResetToken(email: string): Promise<string> {
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  return new SignJWT({ sub: email, purpose: "password-reset" } as unknown as JWTPayload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(JWT_SECRET);
+}
+
+export async function verifyResetToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    if (payload.purpose !== "password-reset") return null;
+    return payload.sub as string;
+  } catch {
+    return null;
+  }
 }

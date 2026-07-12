@@ -10,7 +10,8 @@ interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   if (process.env.NODE_ENV === "development") {
-    console.log(`[EMAIL DEV] To: ${options.to}, Subject: ${options.subject}`);
+    const masked = options.to.replace(/(.{2}).+(@.+)/, "$1***$2");
+    console.log(`[EMAIL DEV] To: ${masked}, Subject: ${options.subject}`);
     return true;
   }
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const UserRoleEnum = z.enum(["CUSTOMER", "ADMIN"]);
 export const UserStatusEnum = z.enum(["ACTIVE", "DISABLED"]);
 export const OrderStatusEnum = z.enum([
-  "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED", "PARTIALLY_REFUNDED",
+  "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED", "PARTIALLY_REFUNDED",
 ]);
 export const ReviewStatusEnum = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export const ArticleStatusEnum = z.enum(["DRAFT", "PUBLISHED"]);
@@ -87,11 +87,16 @@ export const UpdateProductSchema = CreateProductSchema.partial();
 
 export const AddCartItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.coerce.number().int().min(1),
+  quantity: z.coerce.number().int().min(1).max(99),
 });
 
 export const UpdateCartItemSchema = z.object({
-  quantity: z.coerce.number().int().min(1),
+  productId: z.string().uuid(),
+  quantity: z.coerce.number().int().min(0).max(99),
+});
+
+export const RemoveCartItemSchema = z.object({
+  productId: z.string().uuid(),
 });
 
 // ─── Checkout Schemas ───
@@ -158,6 +163,7 @@ export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type AddCartItemInput = z.infer<typeof AddCartItemSchema>;
 export type UpdateCartItemInput = z.infer<typeof UpdateCartItemSchema>;
+export type RemoveCartItemInput = z.infer<typeof RemoveCartItemSchema>;
 export type AddressInput = z.infer<typeof AddressSchema>;
 export type CreateReviewInput = z.infer<typeof CreateReviewSchema>;
 export type UpdateReviewInput = z.infer<typeof UpdateReviewSchema>;
@@ -166,6 +172,66 @@ export type RefundInput = z.infer<typeof RefundSchema>;
 export type CreateBlogInput = z.infer<typeof CreateBlogSchema>;
 export type UpdateBlogInput = z.infer<typeof UpdateBlogSchema>;
 export type ProductFilter = z.infer<typeof ProductFilterSchema>;
+
+// ─── Admin Schemas ───
+
+export const AdminProductCreateSchema = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().min(1).max(200),
+  slug: z.string().min(1).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  description: z.string().min(1).max(5000),
+  price: z.coerce.number().min(0.01).max(9999.99),
+  sku: z.string().min(1).max(50),
+  stock: z.coerce.number().int().min(0).default(0),
+  materialTag: z.string().max(100).default("Pineapple Fiber"),
+  sustainabilityBadge: z.boolean().default(true),
+  published: z.boolean().default(false),
+});
+
+export const AdminProductUpdateSchema = AdminProductCreateSchema.partial();
+
+export const AdminStatusUpdateSchema = z.object({
+  orderId: z.string().min(1),
+  status: OrderStatusEnum,
+  trackingNumber: z.string().max(100).optional(),
+  carrier: z.string().max(100).optional(),
+  reason: z.string().max(500).optional(),
+});
+
+export const AdminRefundSchema = z.object({
+  orderId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+
+export const AdminInventoryAdjustSchema = z.object({
+  productId: z.string().min(1),
+  newStock: z.coerce.number().int(),
+  reason: z.string().min(1).max(500),
+});
+
+const AdminDiscountCreateBase = z.object({
+  code: z.string().min(3).max(50).regex(/^[A-Z0-9_]+$/, "Use uppercase letters, numbers, underscore"),
+  type: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]),
+  value: z.coerce.number().min(0.01),
+  maxUses: z.coerce.number().int().min(1).optional(),
+  minOrderAmount: z.coerce.number().min(0).optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export const AdminDiscountCreateSchema = AdminDiscountCreateBase.refine(
+  (data) => data.type !== "PERCENTAGE" || data.value <= 100,
+  { message: "Percentage discount cannot exceed 100%", path: ["value"] },
+);
+
+export const AdminDiscountUpdateSchema = AdminDiscountCreateBase.partial();
+
+export type AdminProductCreateInput = z.infer<typeof AdminProductCreateSchema>;
+export type AdminProductUpdateInput = z.infer<typeof AdminProductUpdateSchema>;
+export type AdminStatusUpdateInput = z.infer<typeof AdminStatusUpdateSchema>;
+export type AdminRefundInput = z.infer<typeof AdminRefundSchema>;
+export type AdminInventoryAdjustInput = z.infer<typeof AdminInventoryAdjustSchema>;
+export type AdminDiscountCreateInput = z.infer<typeof AdminDiscountCreateSchema>;
+export type AdminDiscountUpdateInput = z.infer<typeof AdminDiscountUpdateSchema>;
 export type SearchInput = z.infer<typeof SearchSchema>;
 
 export interface PaginatedResult<T> {

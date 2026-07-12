@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { randomUUID } from "crypto";
+
+function generateOrderNumber(): string {
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(2);
+  const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+  const dd = now.getDate().toString().padStart(2, "0");
+  const rand = randomUUID().replace(/-/g, "").slice(0, 4).toUpperCase();
+  return `ORD-${yy}${mm}${dd}-${rand}`;
+}
 
 export const orderRepository = {
   async create(data: {
@@ -12,6 +22,7 @@ export const orderRepository = {
     shippingAddress: unknown;
     stripeSessionId: string;
   }) {
+    const orderNumber = generateOrderNumber();
     return prisma.$transaction(async (tx) => {
       for (const item of data.items) {
         const product = await tx.product.findUnique({ where: { id: item.productId } });
@@ -23,6 +34,7 @@ export const orderRepository = {
       const order = await tx.order.create({
         data: {
           userId: data.userId,
+          orderNumber,
           status: "CONFIRMED",
           subtotal: data.subtotal,
           tax: data.tax,

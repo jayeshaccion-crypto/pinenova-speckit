@@ -15,7 +15,11 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     select: { name: true, description: true },
   });
   if (!category) return { title: "Category Not Found" };
-  return { title: category.name, description: category.description ?? `Browse our ${category.name.toLowerCase()} collection.` };
+  return {
+    title: category.name,
+    description: category.description ?? `Browse our ${category.name.toLowerCase()} collection.`,
+    alternates: { canonical: `/categories/${params.slug}` },
+  };
 }
 
 async function getCategoryProducts(slug: string, material?: string, sort?: string) {
@@ -50,13 +54,13 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-baseline justify-between border-b border-neutral-200 pb-4">
+      <div className="flex items-baseline justify-between border-b border-primary/10 pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{category.name}</h1>
-          {category.description && <p className="mt-1 text-sm text-neutral-500">{category.description}</p>}
-          <p className="mt-1 text-sm text-neutral-500">{data.total} product{data.total !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{category.name}</h1>
+          {category.description && <p className="mt-1 text-sm text-foreground/50">{category.description}</p>}
+          <p className="mt-1 text-sm text-foreground/50">{data.total} product{data.total !== 1 ? "s" : ""}</p>
         </div>
-        <Link href="/products" className="text-sm text-neutral-600 hover:text-neutral-900">All Products</Link>
+        <Link href="/products" className="text-sm text-foreground/60 hover:text-foreground">All Products</Link>
       </div>
       <ProductGrid products={data.products} />
     </div>

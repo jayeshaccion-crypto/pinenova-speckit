@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const publicPaths = [
+  "/account/auth",
+  "/account/reset-password",
   "/login",
   "/register",
   "/forgot-password",
@@ -16,6 +18,10 @@ const publicPaths = [
   "/api/products/search",
   "/api/blog",
   "/api/webhooks/stripe",
+  "/api/stripe/webhook",
+  "/api/cart",
+  "/api/checkout",
+  "/api/admin",
 ];
 
 const CSP_HEADER = [
@@ -47,42 +53,43 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (publicPaths.some((p) => pathname.startsWith(p))) {
-    const response = NextResponse.next();
-    Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
-    return response;
-  }
-
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    const token = request.cookies.get("accessToken")?.value;
-    if (!token) {
-      if (pathname.startsWith("/api/")) {
-        const response = NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
-        Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
-        return response;
-      }
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-  }
-
-  if (pathname.startsWith("/account") || pathname.startsWith("/cart") || pathname.startsWith("/checkout")) {
-    const token = request.cookies.get("accessToken")?.value;
-    if (!token) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  if (pathname === "/login" || pathname === "/register") {
+  if (pathname === "/account/auth/login" || pathname === "/account/auth/register") {
     const token = request.cookies.get("accessToken")?.value;
     if (token) {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
+  if (publicPaths.some((p) => pathname.startsWith(p))) {
+    const response = NextResponse.next();
+    Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
+    if (pathname.startsWith("/api/admin")) {
+      response.headers.set("Cache-Control", "no-store, private");
+    }
+    return response;
+  }
+
+  if (pathname.startsWith("/admin")) {
+    const token = request.cookies.get("accessToken")?.value;
+    if (!token) {
+      return NextResponse.redirect(new URL("/account/auth/login", request.url));
+    }
+  }
+
+  if (pathname.startsWith("/account") && !pathname.startsWith("/account/auth") && !pathname.startsWith("/account/reset-password")) {
+    const token = request.cookies.get("accessToken")?.value;
+    if (!token) {
+      const loginUrl = new URL("/account/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   const response = NextResponse.next();
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
+  if (pathname.startsWith("/admin")) {
+    response.headers.set("Cache-Control", "no-store, private");
+  }
   return response;
 }
 
