@@ -1,59 +1,69 @@
-# PineNova — Ecommerce Platform Blueprint
+# PineNova — Vegan Leather Ecommerce Platform
 
-Pineapple-fiber vegan leather ecommerce platform (Bags, Wallets, Belts, Footwear).
+Pineapple-fiber vegan leather ecommerce platform selling Bags, Wallets, Belts, and Footwear. Built with Next.js 14, Prisma, Stripe, and PostgreSQL.
 
-This repository is the scaffold for the full production blueprint defined in
-`docs/00-assumptions.md`. All deterministic assumptions (brand, product
-catalogue, pricing, stack, design tokens) live there and must not be changed
-between generations — every later phase references that file as the single
-source of truth.
+## Tech Stack
 
-## Status
+- **Framework**: Next.js 14 (App Router), TypeScript
+- **Database**: PostgreSQL + Prisma ORM
+- **Payments**: Stripe (Payment Intents, Webhooks, Refunds)
+- **Auth**: JWT access/refresh tokens, bcrypt password hashing
+- **UI**: Tailwind CSS, React Server Components
+- **Testing**: Vitest (unit + integration), Playwright (e2e)
+- **Infrastructure**: AWS S3 (images), Pino (logging)
 
-This is **Phase 0**: folder structure + documentation scaffold only.
-No application code has been generated yet. Each subsequent phase fills in
-one or more of the folders below and is tracked as its own numbered doc in
-`/docs`.
+## Getting Started
 
-## Phased Delivery Plan
-
-| Phase | Deliverable | Doc |
-|---|---|---|
-| 0 | Assumptions, repo tree, folder scaffold | `docs/00-assumptions.md`, `docs/01-repository-tree.md` |
-| 1 | System architecture, DB ER diagram, Prisma schema, SQL migration, seed script | `docs/02-*` → `docs/06-*` |
-| 2 | Product catalogue JSON | `docs/07-product-catalogue.md` |
-| 3 | REST API specification + auth flow | `docs/08-api-specification.md`, `docs/09-auth-flow.md` |
-| 4 | Frontend pages, reusable components, state management | `docs/10-*` → `docs/12-*` |
-| 5 | Checkout flow, admin dashboard | `docs/13-checkout-flow.md`, `docs/14-admin-dashboard.md` |
-| 6 | SEO, content marketing (5 blog articles) | `docs/15-seo.md`, `docs/16-content-marketing.md` |
-| 7 | Performance, security, accessibility | `docs/17-*` → `docs/19-*` |
-| 8 | Environment variables, Docker, CI/CD | `docs/20-*` → `docs/22-*` |
-| 9 | Testing strategy, deployment & production readiness checklists | `docs/23-*`, `docs/24-*` |
-
-## Folder Structure
-
-```
-pinenova/
-├── app/          # Next.js 14 App Router routes, layouts, server actions
-├── components/   # Reusable UI components (client + server)
-├── lib/          # Core libs: db client, auth, stripe, s3, logger
-├── hooks/        # Custom React hooks
-├── prisma/       # schema.prisma, migrations, seed.ts
-├── public/       # Static assets
-├── styles/       # Tailwind config, globals.css
-├── types/        # Shared TypeScript types & zod schemas
-├── utils/        # Pure helper functions
-├── emails/       # Transactional email templates (order confirmation, etc.)
-├── scripts/      # One-off / maintenance scripts
-├── tests/        # Vitest unit/integration + Playwright e2e
-└── docs/         # This blueprint, phase by phase
+```bash
+cp .env.example .env   # fill in DATABASE_URL, STRIPE_SECRET_KEY, JWT_SECRET
+npm install
+npx prisma db push
+npx prisma db seed
+npm run dev
 ```
 
-Each of the above folders currently contains a placeholder `README.md`
-describing exactly what will land there and in which phase.
+Admin login: `admin@pinenova.com` / `Admin1234` (created by seed).
 
-## Next Step
+## Project Structure
 
-Say **"proceed with Phase 1"** (or name any phase/deliverable directly) and
-I'll generate that batch of files against the fixed assumptions — no
-re-confirmation needed, no scope drift.
+```
+app/                  # Next.js App Router routes
+├── (storefront)/     # Public pages (products, cart, checkout, account)
+├── admin/            # Admin dashboard UI
+└── api/              # API routes
+    ├── admin/        # Products, orders, inventory, discounts, metrics
+    ├── auth/         # Login, register, refresh, reset-password
+    ├── cart/         # Cart CRUD
+    ├── checkout/     # Checkout + payment
+    ├── account/      # Account data, order history
+    └── stripe/       # Webhook handler
+components/           # Reusable UI components
+lib/                  # Core modules (auth, stripe, db, logger, s3, rate-limit)
+services/             # Business logic (checkout, inventory)
+prisma/               # Schema, migrations, seed
+types/                # Zod schemas + TypeScript types
+tests/                # Unit + integration tests
+specs/                # Spec-kit documentation
+```
+
+## Features
+
+- **Storefront**: Product catalog with categories, search, filter, sort; product detail with images
+- **Cart**: Add/remove/update items, session-based, stock validation
+- **Checkout**: Shipping address, discount codes, server-authoritative pricing, Stripe payment, webhook processing, order confirmation
+- **Auth**: Register, login, JWT refresh, password reset, middleware gating
+- **Admin Dashboard**: CRUD products/orders/inventory/discounts, order status state machine, refund processing, sales metrics + CSV export
+- **Discount Codes**: Percentage or fixed-amount, usage limits, expiry, min order, validation at checkout
+
+## Tests
+
+```bash
+npm test              # vitest run (168 tests across 9 suites)
+npm run test:watch    # watch mode
+npm run test:e2e      # Playwright e2e
+npm run build         # production build
+```
+
+## Environment Variables
+
+See `.env.example` for all required vars: database, Stripe, JWT, S3, email.
