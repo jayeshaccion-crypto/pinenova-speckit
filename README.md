@@ -86,6 +86,10 @@ specs/                # Spec-kit documentation
 - `AuthContext` — React Context for user session
 - `CartContext` — React Context for cart state (add, update, remove, clear)
 
+## Implementation Status
+
+Phases 1–4 complete (Header, Auth, Cart/Checkout, Product pages). Next: Phase 5 (Admin: sidebar actions, bulk orders, image upload). See `UI_IMPLEMENTATION_AUDIT.md` and `OPENCODE_WORKFLOW_v2.md` for details.
+
 ## Tests
 
 ```bash
