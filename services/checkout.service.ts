@@ -6,41 +6,11 @@ import { releaseStock, InsufficientStockError, retryOnSerialization } from "./in
 export { InsufficientStockError };
 
 const TAX_RATES: Record<string, number> = {
-  CA: 725,
-  NY: 888,
-  TX: 825,
-  FL: 700,
-  IL: 725,
-  PA: 600,
-  OH: 725,
-  GA: 700,
-  NC: 725,
-  MI: 600,
-  NJ: 662,
-  VA: 575,
-  WA: 650,
-  AZ: 560,
-  MA: 625,
-  TN: 700,
-  IN: 700,
-  MO: 722,
-  MD: 600,
-  WI: 500,
-  MN: 688,
-  CO: 465,
-  SC: 725,
-  AL: 800,
-  LA: 845,
-  KY: 600,
-  OR: 0,
-  MT: 0,
-  AK: 0,
-  DE: 0,
-  NH: 0,
+  DEFAULT: 1000, // 10% flat tax per assumptions.md
 };
 
-const SHIPPING_FLAT = 599;
-const FREE_SHIPPING_THRESHOLD = 10000;
+const SHIPPING_FLAT = 800;
+const FREE_SHIPPING_THRESHOLD = 12000;
 
 export interface PricingInput {
   items: Array<{ quantity: number; unitPrice: number }>;
@@ -56,13 +26,8 @@ export interface PricingResult {
   total: number;
 }
 
-export function lookupTaxRate(stateCode: string): number {
-  const rate = TAX_RATES[stateCode.toUpperCase()];
-  if (rate === undefined) {
-    logger.warn({ stateCode }, "Unknown state code, fallback to 0 tax rate");
-    return 0;
-  }
-  return rate;
+export function lookupTaxRate(_stateCode: string): number {
+  return TAX_RATES.DEFAULT;
 }
 
 export interface DiscountValidationResult {
@@ -328,16 +293,16 @@ export async function checkout(
   const pricing = await calculatePricingWithDiscount(items, shippingAddress.state, discountCode);
 
   const idempotencyKey = `checkout_${cartId}_${Date.now()}`;
-  const payment = await createPayment(pricing.total, idempotencyKey, discountCode, cartId);
-
   const orderNumber = generateOrderNumber();
 
   const discountId = discountCode
     ? (await prisma.discountCode.findUnique({ where: { code: discountCode }, select: { id: true } }))?.id
     : undefined;
 
-  const order = await retryOnSerialization(async () => {
-    return prisma.$transaction(async (tx) => {
+  const result = await retryOnSerialization(async () => {
+    const payment = await createPayment(pricing.total, idempotencyKey, discountCode, cartId);
+
+    return prisma.$transaction(async (tx): Promise<any> => {
     for (const item of cart.items) {
       const rows = await tx.$queryRawUnsafe<Array<{ stock: number }>>(
         `SELECT stock FROM "Product" WHERE id = $1 FOR UPDATE`,
@@ -395,14 +360,21 @@ export async function checkout(
         },
       },
     });
-    return created;
+    return { payment, order: created };
     });
   });
 
   return {
-    clientSecret: payment.client_secret!,
-    paymentIntentId: payment.id,
-    orderId: order.id,
-    orderNumber: order.orderNumber,
+    clientSecret: result.payment.client_secret!,
+    paymentIntentId: result.payment.id,
+    orderId: result.order.id,
+    orderNumber: result.order.orderNumber,
+    pricing: {
+      subtotal: pricing.subtotal / 100,
+      discountAmount: pricing.discountAmount / 100,
+      shippingCost: pricing.shippingCost / 100,
+      taxAmount: pricing.taxAmount / 100,
+      total: pricing.total / 100,
+    },
   };
 }

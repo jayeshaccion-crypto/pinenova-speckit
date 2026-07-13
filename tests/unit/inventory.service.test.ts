@@ -67,18 +67,24 @@ describe("reserveStock", () => {
 
 describe("releaseStock", () => {
   it("restores stock and creates audit log", async () => {
-    vi.mocked(prisma.product.findUnique).mockResolvedValue({ stock: 5 } as any);
-    vi.mocked(prisma.product.update).mockResolvedValue({} as any);
+    vi.mocked(prisma.$queryRawUnsafe).mockResolvedValue([{ stock: 8 }]);
     vi.mocked(prisma.inventoryLog.create).mockResolvedValue({} as any);
 
     await releaseStock("prod-1", 3);
 
-    expect(prisma.product.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "prod-1" },
-        data: { stock: 8 },
-      }),
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
+      `UPDATE "Product" SET stock = stock + $1 WHERE id = $2 RETURNING stock`,
+      3,
+      "prod-1",
     );
-    expect(prisma.inventoryLog.create).toHaveBeenCalled();
+    expect(prisma.inventoryLog.create).toHaveBeenCalledWith({
+      data: {
+        productId: "prod-1",
+        oldStock: 5,
+        newStock: 8,
+        change: 3,
+        reason: "release",
+      },
+    });
   });
 });

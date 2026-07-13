@@ -4,7 +4,7 @@ import { hashPassword, signResetToken, verifyResetToken } from "@/lib/auth";
 import { sendEmail, emailTemplates } from "@/lib/email";
 import { ForgotPasswordSchema, ResetPasswordSchema } from "@/types";
 import { apiError, apiSuccess, handleApiError, checkCSRF } from "@/lib/api-utils";
-import { checkAuthRateLimit } from "@/lib/rate-limiter";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +12,8 @@ export async function POST(request: Request) {
     if (csrf) return csrf;
 
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (!checkAuthRateLimit(`reset:${ip}`, 3, 60000)) {
+    const rl = await rateLimit(`reset:${ip}`, { max: 3, windowMs: 60000 });
+    if (!rl.allowed) {
       return apiError("RATE_LIMITED", "Too many password reset attempts. Please try again later.", 429);
     }
 

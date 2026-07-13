@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const discount = await prisma.discountCode.create({
       data: {
         code: parsed.data.code,
-        type: parsed.data.type as any,
+        type: parsed.data.type,
         value: parsed.data.value,
         maxUses: parsed.data.maxUses,
         minOrderAmount: parsed.data.minOrderAmount,

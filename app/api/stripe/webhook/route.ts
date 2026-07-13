@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { constructWebhookEvent } from "@/lib/stripe";
@@ -13,9 +14,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: { code: "MISSING_SIGNATURE", message: "No Stripe signature header" } }, { status: 400 });
     }
 
-    let event: { type: string; id: string; data: { object: any } };
+    let event: Stripe.Event;
     try {
-      event = constructWebhookEvent(body, signature) as any;
+      event = constructWebhookEvent(body, signature);
     } catch (error: any) {
       logger.error({ error: { message: error.message } }, "Webhook signature verification failed");
       return NextResponse.json({ error: { code: "INVALID_SIGNATURE", message: "Invalid webhook signature" } }, { status: 400 });
@@ -37,42 +38,76 @@ export async function POST(request: Request) {
       },
     });
 
-    switch (event.type) {
-      case "payment_intent.succeeded": {
-        const paymentIntent = event.data.object;
-        await prisma.webhookEvent.update({
-          where: { eventId: event.id },
-          data: { status: "processed", processedAt: new Date() },
-        });
+    try {
+      switch (event.type) {
+        case "payment_intent.succeeded": {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          const cartId = paymentIntent.metadata?.cartId;
 
-        const cartId = paymentIntent.metadata?.cartId;
-        if (cartId) {
+          await prisma.webhookEvent.update({
+            where: { eventId: event.id },
+            data: {
+              data: JSON.stringify({
+                paymentIntentId: paymentIntent.id,
+                amount: paymentIntent.amount,
+                currency: paymentIntent.currency,
+                metadata: paymentIntent.metadata,
+              }),
+            },
+          });
+          if (!cartId) {
+            logger.warn({ eventId: event.id, paymentIntentId: paymentIntent.id }, "No cartId in metadata, skipping");
+            await prisma.webhookEvent.update({
+              where: { eventId: event.id },
+              data: { status: "skipped", processedAt: new Date() },
+            });
+            break;
+          }
+
           const result = await handlePaymentSuccess(paymentIntent.id);
           if (result) {
             logger.info({ eventId: event.id, orderId: result.orderId, orderNumber: result.orderNumber }, "Order created from webhook");
           }
+          await prisma.webhookEvent.update({
+            where: { eventId: event.id },
+            data: { status: "processed", processedAt: new Date() },
+          });
+          break;
         }
-        break;
+
+        case "payment_intent.payment_failed": {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          logger.warn({ eventId: event.id, paymentIntentId: paymentIntent.id, failureReason: paymentIntent.last_payment_error?.message }, "Payment failed");
+          await handlePaymentFailed(paymentIntent.id);
+          await prisma.webhookEvent.update({
+            where: { eventId: event.id },
+            data: {
+              status: "processed",
+              processedAt: new Date(),
+              data: JSON.stringify({
+                paymentIntentId: paymentIntent.id,
+                amount: paymentIntent.amount,
+                currency: paymentIntent.currency,
+                metadata: paymentIntent.metadata,
+              }),
+            },
+          });
+          break;
+        }
+
+        default:
+          logger.info({ eventId: event.id, type: event.type }, "Unhandled webhook event type");
+          await prisma.webhookEvent.update({
+            where: { eventId: event.id },
+            data: { status: "skipped", processedAt: new Date() },
+          });
       }
-
-      case "payment_intent.payment_failed": {
-        const paymentIntent = event.data.object;
-        logger.warn({ eventId: event.id, paymentIntentId: paymentIntent.id, failureReason: paymentIntent.last_payment_error?.message }, "Payment failed");
-        await handlePaymentFailed(paymentIntent.id);
-
-        await prisma.webhookEvent.update({
-          where: { eventId: event.id },
-          data: { status: "processed", processedAt: new Date() },
-        });
-        break;
-      }
-
-      default:
-        logger.info({ eventId: event.id, type: event.type }, "Unhandled webhook event type");
-        await prisma.webhookEvent.update({
-          where: { eventId: event.id },
-          data: { status: "skipped" },
-        });
+    } catch (processingError: any) {
+      logger.error({ eventId: event.id, type: event.type, error: { message: processingError.message } }, "Webhook processing failed");
+      await prisma.webhookEvent.update({
+        where: { eventId: event.id },
+        data: { status: "failed", error: processingError.message },
+      });
     }
 
     return NextResponse.json({ received: true }, { status: 200 });

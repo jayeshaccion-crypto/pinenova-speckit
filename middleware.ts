@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
 const publicPaths = [
   "/account/auth",
@@ -21,36 +22,61 @@ const publicPaths = [
   "/api/stripe/webhook",
   "/api/cart",
   "/api/checkout",
-  "/api/admin",
 ];
 
-const CSP_HEADER = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' https://fonts.gstatic.com",
-  "frame-src https://js.stripe.com https://hooks.stripe.com",
-  "connect-src 'self' https://api.stripe.com",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
+function generateNonce(): string {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  let binary = "";
+  for (let i = 0; i < array.length; i++) {
+    binary += String.fromCharCode(array[i]);
+  }
+  return btoa(binary);
+}
 
-const SECURITY_HEADERS: Record<string, string> = {
+function buildCSP(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "https://js.stripe.com",
+    ...(isDev ? ["'unsafe-eval'"] : []),
+  ].join(" ");
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+    "img-src 'self' data: https://pinenova-assets.s3.amazonaws.com https://js.stripe.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "frame-src https://js.stripe.com https://hooks.stripe.com",
+    "connect-src 'self' https://api.stripe.com",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
+const SECURITY_HEADERS_BASE: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "X-XSS-Protection": "0",
-  "Content-Security-Policy": CSP_HEADER,
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 };
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const nonce = generateNonce();
+  const csp = buildCSP(nonce);
 
   if (pathname.startsWith("/_next") || pathname.startsWith("/static") || pathname === "/favicon.ico") {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", csp);
+    response.headers.set("X-Content-Security-Policy", csp);
+    response.headers.set("X-WebKit-CSP", csp);
+    return response;
   }
 
   if (pathname === "/account/auth/login" || pathname === "/account/auth/register") {
@@ -62,17 +88,32 @@ export function middleware(request: NextRequest) {
 
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     const response = NextResponse.next();
-    Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
-    if (pathname.startsWith("/api/admin")) {
-      response.headers.set("Cache-Control", "no-store, private");
-    }
+    response.headers.set("Content-Security-Policy", csp);
+    Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
     return response;
   }
 
   if (pathname.startsWith("/admin")) {
     const token = request.cookies.get("accessToken")?.value;
     if (!token) {
-      return NextResponse.redirect(new URL("/account/auth/login", request.url));
+      const loginUrl = new URL("/account/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    try {
+      const secretKey = process.env.JWT_SECRET;
+      if (!secretKey) {
+        return NextResponse.redirect(new URL("/?error=misconfigured", request.url));
+      }
+      const secret = new TextEncoder().encode(secretKey);
+      const { payload } = await jwtVerify(token, secret);
+      if ((payload as any).role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/?error=forbidden", request.url));
+      }
+    } catch {
+      const loginUrl = new URL("/account/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
@@ -86,7 +127,11 @@ export function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("X-Content-Security-Policy", csp);
+  response.headers.set("X-WebKit-CSP", csp);
+  response.headers.set("x-nonce", nonce);
+  Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
   if (pathname.startsWith("/admin")) {
     response.headers.set("Cache-Control", "no-store, private");
   }

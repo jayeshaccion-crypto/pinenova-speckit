@@ -20,7 +20,7 @@ export async function requireAdmin(request: Request): Promise<{ sub: string } | 
     return NextResponse.json({ error: { code: "FORBIDDEN", message: "Admin access required", requestId: crypto.randomUUID() } }, { status: 403 });
   }
 
-  const rl = rateLimit(`admin:${payload.sub}`, 60, 60000);
+  const rl = await rateLimit(`admin:${payload.sub}`, { max: 60, windowMs: 60000 });
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: "RATE_LIMITED", message: "Too many requests", requestId: crypto.randomUUID() } }, { status: 429 });
   }

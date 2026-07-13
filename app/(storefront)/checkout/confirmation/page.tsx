@@ -12,10 +12,15 @@ interface ConfirmationPageProps {
   searchParams: { payment_intent?: string; orderId?: string; orderNumber?: string };
 }
 
+interface ProductSnapshot {
+  name: string;
+  [key: string]: unknown;
+}
+
 async function getOrder(paymentIntentId?: string): Promise<{
   orderNumber: string; total: number; subtotal: number; tax: number; shippingCost: number; discountAmount: number;
   status: string; email: string | null; createdAt: Date;
-  items: Array<{ quantity: number; unitPrice: number; productSnapshot: any }>;
+  items: Array<{ quantity: number; unitPrice: number; productSnapshot: ProductSnapshot }>;
 } | null> {
   if (!paymentIntentId) return null;
   const order = await prisma.order.findFirst({
@@ -27,7 +32,7 @@ async function getOrder(paymentIntentId?: string): Promise<{
     orderNumber: order.orderNumber, total: Number(order.total), subtotal: Number(order.subtotal),
     tax: Number(order.tax), shippingCost: Number(order.shippingCost), discountAmount: Number(order.discountAmount),
     status: order.status, email: order.email, createdAt: order.createdAt,
-    items: order.items.map((i) => ({ quantity: i.quantity, unitPrice: Number(i.unitPrice), productSnapshot: i.productSnapshot })),
+    items: order.items.map((i) => ({ quantity: i.quantity, unitPrice: Number(i.unitPrice), productSnapshot: (i.productSnapshot ?? { name: "Unknown Product" }) as ProductSnapshot })),
   };
 }
 
@@ -48,7 +53,10 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
         </div>
         <h1 className="mt-4 text-2xl font-bold text-foreground">Thank you for your order!</h1>
         <p className="mt-2 text-sm text-foreground/50">
-          Order #{order.orderNumber} has been confirmed.
+          Order <span className="font-mono font-semibold text-foreground">#{order.orderNumber}</span> has been confirmed.
+        </p>
+        <p className="mt-1 text-xs text-foreground/40">
+          A confirmation email{order.email ? ` has been sent to ${order.email}` : " will be sent once available"}.
         </p>
       </div>
 
@@ -80,7 +88,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
         <h2 className="text-base font-semibold text-foreground">Items Ordered</h2>
         <div className="mt-4 space-y-3 text-sm">
           {order.items.map((item, i) => {
-            const snap = item.productSnapshot as any;
+            const snap = item.productSnapshot;
             return (
               <div key={i} className="flex items-center justify-between border-b border-primary/5 pb-3 last:border-0 last:pb-0">
                 <div>
@@ -119,10 +127,13 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
         </dl>
       </div>
 
-      <div className="mt-8 text-center">
-        <Link href="/products" className="btn-primary inline-block">
-          Continue Shopping
+      <div className="mt-8 text-center space-y-3">
+        <Link href="/account/orders" className="btn-primary inline-block">
+          View Order Details
         </Link>
+        <div className="text-sm text-foreground/50">
+          or <Link href="/products" className="text-primary hover:underline">continue shopping</Link>
+        </div>
       </div>
     </div>
   );

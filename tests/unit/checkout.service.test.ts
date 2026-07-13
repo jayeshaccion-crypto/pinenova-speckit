@@ -2,22 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { calculatePricing, lookupTaxRate } from "@/services/checkout.service";
 
 describe("lookupTaxRate", () => {
-  it("returns basis points for known states", () => {
-    expect(lookupTaxRate("CA")).toBe(725);
-    expect(lookupTaxRate("NY")).toBe(888);
-    expect(lookupTaxRate("TX")).toBe(825);
-    expect(lookupTaxRate("OR")).toBe(0);
-  });
-
-  it("returns 0 for unknown states and logs warning", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(lookupTaxRate("XX")).toBe(0);
-    warnSpy.mockRestore();
+  it("returns 1000 basis points (10%) for all states", () => {
+    expect(lookupTaxRate("CA")).toBe(1000);
+    expect(lookupTaxRate("NY")).toBe(1000);
+    expect(lookupTaxRate("TX")).toBe(1000);
+    expect(lookupTaxRate("OR")).toBe(1000);
+    expect(lookupTaxRate("XX")).toBe(1000);
   });
 
   it("is case insensitive", () => {
-    expect(lookupTaxRate("ca")).toBe(725);
-    expect(lookupTaxRate("Ny")).toBe(888);
+    expect(lookupTaxRate("ca")).toBe(1000);
+    expect(lookupTaxRate("Ny")).toBe(1000);
+    expect(lookupTaxRate("tx")).toBe(1000);
   });
 });
 
@@ -29,48 +25,50 @@ describe("calculatePricing", () => {
     });
     expect(result.subtotal).toBe(10000);
     expect(result.discountAmount).toBe(0);
-    expect(result.shippingCost).toBe(0);
-    expect(result.taxAmount).toBe(725);
-    expect(result.total).toBe(10725);
+    expect(result.shippingCost).toBe(800);
+    expect(result.taxAmount).toBe(1000);
+    expect(result.total).toBe(11800);
   });
 
-  it("applies shipping cost when subtotal under $100 threshold", () => {
+  it("applies shipping cost when subtotal under $120 threshold", () => {
     const result = calculatePricing({
       items: [{ quantity: 1, unitPrice: 2500 }],
       stateCode: "TX",
     });
     expect(result.subtotal).toBe(2500);
-    expect(result.shippingCost).toBe(599);
-    expect(result.taxAmount).toBe(206);
-    expect(result.total).toBe(3305);
+    expect(result.shippingCost).toBe(800);
+    expect(result.taxAmount).toBe(250);
+    expect(result.total).toBe(3550);
   });
 
-  it("provides free shipping at exactly $100 threshold", () => {
+  it("provides free shipping at exactly $120 threshold", () => {
     const result = calculatePricing({
-      items: [{ quantity: 2, unitPrice: 5000 }],
+      items: [{ quantity: 2, unitPrice: 6000 }],
       stateCode: "NY",
     });
-    expect(result.subtotal).toBe(10000);
+    expect(result.subtotal).toBe(12000);
     expect(result.shippingCost).toBe(0);
+    expect(result.taxAmount).toBe(1200);
+    expect(result.total).toBe(13200);
   });
 
-  it("calculates tax correctly with basis points", () => {
+  it("calculates tax correctly with flat 10%", () => {
     const result = calculatePricing({
       items: [{ quantity: 1, unitPrice: 10000 }],
       stateCode: "CA",
     });
     expect(result.subtotal).toBe(10000);
-    expect(result.shippingCost).toBe(0);
-    expect(result.taxAmount).toBe(725);
-    expect(result.total).toBe(10725);
+    expect(result.shippingCost).toBe(800);
+    expect(result.taxAmount).toBe(1000);
+    expect(result.total).toBe(11800);
   });
 
-  it("uses 0 tax for unknown state codes", () => {
+  it("uses 10% tax for all state codes", () => {
     const result = calculatePricing({
       items: [{ quantity: 1, unitPrice: 10000 }],
       stateCode: "XX",
     });
-    expect(result.taxAmount).toBe(0);
+    expect(result.taxAmount).toBe(1000);
   });
 
   it("handles multiple items", () => {
@@ -82,17 +80,17 @@ describe("calculatePricing", () => {
       stateCode: "FL",
     });
     expect(result.subtotal).toBe(6500);
-    expect(result.shippingCost).toBe(599);
-    expect(result.taxAmount).toBe(455);
-    expect(result.total).toBe(7554);
+    expect(result.shippingCost).toBe(800);
+    expect(result.taxAmount).toBe(650);
+    expect(result.total).toBe(7950);
   });
 
-  it("charges flat shipping for subtotal under 10000", () => {
+  it("charges flat shipping for subtotal under 12000", () => {
     const result = calculatePricing({
       items: [{ quantity: 1, unitPrice: 9999 }],
       stateCode: "CA",
     });
-    expect(result.shippingCost).toBe(599);
+    expect(result.shippingCost).toBe(800);
     expect(result.total).toBeGreaterThan(0);
   });
 });

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { CartItem } from "@/components/CartItem";
 import { CartSummary } from "@/components/CartSummary";
+import { CartDiscountCode } from "@/components/CartDiscountCode";
 
 interface CartItemProduct {
   id: string;
@@ -86,6 +87,7 @@ export default function CartPage() {
   const [cart, setCart] = useState<CartResponse>({ id: null, items: [], itemCount: 0, subtotal: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [discountCode, setDiscountCode] = useState("");
 
   const loadCart = useCallback(async () => {
     try {
@@ -170,8 +172,9 @@ export default function CartPage() {
             />
           ))}
         </div>
-        <div>
-          <CartSummary subtotal={cart.subtotal} itemCount={cart.itemCount} />
+        <div className="space-y-4">
+          <CartDiscountCode code={discountCode} onChange={setDiscountCode} />
+          <CartSummary subtotal={cart.subtotal} itemCount={cart.itemCount} discountCode={discountCode} />
         </div>
       </div>
     </div>

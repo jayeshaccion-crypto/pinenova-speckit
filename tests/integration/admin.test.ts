@@ -7,13 +7,12 @@ vi.mock("@/lib/db", () => ({ prisma: {
   inventoryLog: { findMany: vi.fn(), create: vi.fn() },
   orderStatusLog: { create: vi.fn() },
   $queryRawUnsafe: vi.fn(),
-  user: { findUnique: vi.fn() },
+  user: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
   category: { findMany: vi.fn(), findUnique: vi.fn() },
 } }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/audit", () => ({ logAuditEvent: vi.fn() }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn(), rateLimitResponse: vi.fn() }));
-vi.mock("@/lib/rate-limiter", () => ({ checkAuthRateLimit: vi.fn().mockReturnValue(true), checkRateLimit: vi.fn().mockReturnValue(true), rateLimitMiddleware: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ hashPassword: vi.fn(), verifyAccessToken: vi.fn(), comparePassword: vi.fn(), signAccessToken: vi.fn(), signRefreshToken: vi.fn(), clearUserRefreshTokens: vi.fn() }));
 vi.mock("@/lib/stripe", () => ({ stripe: { refunds: { create: vi.fn().mockResolvedValue({ id: "refund_1" }) } }, createRefund: vi.fn() }));
 
@@ -21,6 +20,7 @@ import { GET as getProducts, POST as createProduct, PATCH as updateProduct, DELE
 import { GET as getOrders, PATCH as updateOrder, POST as refundOrder } from "@/app/api/admin/orders/route";
 import { GET as getInventory, POST as adjustInventory } from "@/app/api/admin/inventory/route";
 import { GET as getDiscounts, POST as createDiscount, DELETE as deactivateDiscount } from "@/app/api/admin/discounts/route";
+import { GET as getUsers, PATCH as updateUser } from "@/app/api/admin/users/route";
 import { AdminDiscountCreateSchema } from "@/types";
 import { prisma } from "@/lib/db";
 import { verifyAccessToken } from "@/lib/auth";
@@ -53,7 +53,7 @@ const mockProduct = { id: "prod-1", name: "Test Product", slug: "test-product", 
 const mockOrder = { id: "ord-1", orderNumber: "ORD-001", status: "CONFIRMED", total: 50.00, subtotal: 50.00, tax: 0, shippingCost: 0, stripePaymentIntentId: "pi_123", createdAt: new Date(), updatedAt: new Date(), email: "test@example.com", items: [], user: { id: "user-1", email: "test@example.com", firstName: "Test", lastName: "User" } };
 
 describe("Admin — Auth Guard", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "user-1", role: "CUSTOMER" }); vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 59 }); });
+  beforeEach(() => { vi.clearAllMocks();     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "user-1", role: "CUSTOMER" }); vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 }); });
 
   it("returns 403 for non-admin user", async () => {
     const res = await getProducts(nonAdminRequest());
@@ -73,7 +73,7 @@ describe("Admin — Products", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "admin-1", role: "ADMIN" });
-    vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 59 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 });
   });
 
   it("lists products", async () => {
@@ -112,7 +112,7 @@ describe("Admin — Orders", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "admin-1", role: "ADMIN" });
-    vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 59 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 });
     vi.mocked(prisma.order.findUnique).mockResolvedValue(mockOrder as any);
   });
 
@@ -160,7 +160,7 @@ describe("Admin — Inventory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "admin-1", role: "ADMIN" });
-    vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 59 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 });
   });
 
   it("lists inventory", async () => {
@@ -190,7 +190,7 @@ describe("Admin — Discounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "admin-1", role: "ADMIN" });
-    vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 59 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 });
   });
 
   it("lists discount codes", async () => {
@@ -220,5 +220,34 @@ describe("Admin — Discounts", () => {
     if (!result.success) {
       expect(result.error.issues[0].path).toContain("value");
     }
+  });
+});
+
+describe("Admin — Users", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(verifyAccessToken).mockResolvedValue({ sub: "admin-1", role: "ADMIN" });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 59, resetAt: Date.now() + 60000 });
+  });
+
+  it("lists users", async () => {
+    vi.mocked(prisma.user.findMany).mockResolvedValue([{ id: "user-1", email: "test@example.com", firstName: "Test", lastName: "User", role: "CUSTOMER", status: "ACTIVE", provider: "email", totpEnabled: false, createdAt: new Date(), updatedAt: new Date() }] as any);
+    vi.mocked(prisma.user.count).mockResolvedValue(1);
+    const res = await getUsers(adminRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toHaveLength(1);
+  });
+
+  it("returns 404 for non-existent user update", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    const res = await updateUser(adminRequest("PATCH", { userId: "nonexistent", status: "DISABLED" }));
+    expect(res.status).toBe(404);
+  });
+
+  it("prevents self-demotion from admin", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "admin-1", email: "admin@test.com", role: "ADMIN" } as any);
+    const res = await updateUser(adminRequest("PATCH", { userId: "admin-1", role: "CUSTOMER" }));
+    expect(res.status).toBe(403);
   });
 });

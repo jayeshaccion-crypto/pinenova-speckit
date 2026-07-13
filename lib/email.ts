@@ -1,4 +1,4 @@
-const API_KEY = process.env.EMAIL_API_KEY || "";
+const API_KEY = process.env.SENDGRID_API_KEY || "";
 const FROM = process.env.EMAIL_FROM || "noreply@pinenova.com";
 
 interface EmailOptions {

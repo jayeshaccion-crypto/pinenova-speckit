@@ -37,7 +37,7 @@ describe("POST /api/checkout — route-level guards", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isEnabled).mockReturnValue(true);
-    vi.mocked(rateLimit).mockReturnValue({ allowed: true, remaining: 9 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
     vi.mocked(rateLimitResponse).mockReturnValue(new Response(null, { status: 429 }) as any);
     vi.mocked(prisma.cart.findUnique).mockResolvedValue({
       id: "cart-1",
@@ -76,7 +76,7 @@ describe("POST /api/checkout — route-level guards", () => {
   });
 
   it("returns 429 when rate limit exceeded", async () => {
-    vi.mocked(rateLimit).mockReturnValue({ allowed: false, remaining: 0 });
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
     const res = await POST(makeRequest());
     expect(res.status).toBe(429);
   });

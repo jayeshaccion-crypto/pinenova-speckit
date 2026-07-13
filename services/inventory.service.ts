@@ -58,19 +58,17 @@ export async function reserveStock(productId: string, quantity: number): Promise
 }
 
 export async function releaseStock(productId: string, quantity: number): Promise<void> {
-  const product = await prisma.product.findUnique({ where: { id: productId }, select: { stock: true } });
-  if (!product) return;
-
-  const newStock = product.stock + quantity;
-  await prisma.product.update({
-    where: { id: productId },
-    data: { stock: newStock },
-  });
+  const rows = await prisma.$queryRawUnsafe<Array<{ stock: number }>>(
+    `UPDATE "Product" SET stock = stock + $1 WHERE id = $2 RETURNING stock`,
+    quantity,
+    productId,
+  );
+  const newStock = rows[0]?.stock;
 
   await prisma.inventoryLog.create({
     data: {
       productId,
-      oldStock: product.stock,
+      oldStock: newStock - quantity,
       newStock,
       change: quantity,
       reason: "release",

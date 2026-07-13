@@ -3,10 +3,19 @@ import { verifyAccessToken } from "./auth";
 import { logger } from "./logger";
 
 export async function getAuthUser(request: Request) {
+  let token: string | null = null;
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else {
+    const cookieHeader = request.headers.get("cookie");
+    if (cookieHeader) {
+      const match = cookieHeader.match(/accessToken=([^;]+)/);
+      if (match) token = match[1];
+    }
+  }
+  if (!token) return null;
 
-  const token = authHeader.slice(7);
   const payload = await verifyAccessToken(token);
   if (!payload) return null;
 

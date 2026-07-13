@@ -4,7 +4,7 @@ vi.mock("@/lib/db", () => ({ prisma: { user: { findUnique: vi.fn(), create: vi.f
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/db", () => ({ prisma: { user: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() }, refreshToken: { create: vi.fn(), findMany: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() } } }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("@/lib/rate-limiter", () => ({ checkAuthRateLimit: vi.fn().mockReturnValue(true) }));
+vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn(), rateLimitResponse: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ logAuditEvent: vi.fn() }));
 vi.mock("@/lib/email", () => ({ sendEmail: vi.fn(), emailTemplates: { passwordReset: vi.fn(() => ({ subject: "Reset", html: "<p>Reset</p>" })) } }));
 vi.mock("@/lib/auth", () => ({
@@ -23,7 +23,7 @@ import { POST as loginPost } from "@/app/api/auth/login/route";
 import { POST as refreshPost } from "@/app/api/auth/refresh/route";
 import { POST as resetPasswordPost } from "@/app/api/auth/reset-password/route";
 import { prisma } from "@/lib/db";
-import { checkAuthRateLimit } from "@/lib/rate-limiter";
+import { rateLimit } from "@/lib/rate-limit";
 import { comparePassword, signAccessToken, signRefreshToken, verifyResetToken, rotateRefreshToken } from "@/lib/auth";
 
 function makeRequest(body: any, origin?: string): Request {
@@ -40,13 +40,13 @@ function makeRequest(body: any, origin?: string): Request {
 }
 
 function mockUser(email = "test@example.com") {
-  return { id: "user-1", email, firstName: "Test", lastName: "User", role: "CUSTOMER", status: "ACTIVE", passwordHash: "$2a$12$hashed", createdAt: new Date() } as any;
+  return { id: "user-1", email, firstName: "Test", lastName: "User", role: "CUSTOMER", status: "ACTIVE", passwordHash: "$2a$12$hashed", createdAt: new Date(), totpEnabled: false, totpSecret: null } as any;
 }
 
 describe("POST /api/auth/register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkAuthRateLimit).mockReturnValue(true);
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 4, resetAt: Date.now() + 60000 });
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
   });
 
@@ -95,7 +95,7 @@ describe("POST /api/auth/register", () => {
 describe("POST /api/auth/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkAuthRateLimit).mockReturnValue(true);
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
     vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser());
     vi.mocked(comparePassword).mockResolvedValue(true);
     vi.mocked(signAccessToken).mockResolvedValue("access-token");
@@ -118,16 +118,26 @@ describe("POST /api/auth/login", () => {
   });
 
   it("returns 429 on rate limit exceeded", async () => {
-    vi.mocked(checkAuthRateLimit).mockReturnValue(false);
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
     const res = await loginPost(makeRequest({ email: "test@example.com", password: "Pass1234" }));
     expect(res.status).toBe(429);
+  });
+
+  it("returns requiresTwoFactor when user has 2FA enabled", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...mockUser(), totpEnabled: true, totpSecret: "secret" } as any);
+    vi.mocked(signAccessToken).mockResolvedValue("temp-token");
+    const res = await loginPost(makeRequest({ email: "test@example.com", password: "Pass1234" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.requiresTwoFactor).toBe(true);
+    expect(body.tempToken).toBe("temp-token");
   });
 });
 
 describe("POST /api/auth/reset-password", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkAuthRateLimit).mockReturnValue(true);
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: true, remaining: 2, resetAt: Date.now() + 60000 });
     vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser());
     vi.mocked(prisma.user.update).mockResolvedValue(mockUser());
   });
@@ -208,7 +218,7 @@ describe("POST /api/auth/refresh", () => {
 describe("POST /api/auth/login — rate limit per endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkAuthRateLimit).mockReturnValue(false);
+    vi.mocked(rateLimit).mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
   });
 

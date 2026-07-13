@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { ReviewForm } from "@/components/ReviewForm";
+import { AllReviews } from "@/components/AllReviews";
+import { ProductImageGallery } from "@/components/ProductImageGallery";
+import { VariantSelector } from "@/components/VariantSelector";
+import { RelatedProducts } from "@/components/RelatedProducts";
+import { RecentlyViewed } from "@/components/RecentlyViewed";
+import { TrackRecentlyViewed } from "@/components/TrackRecentlyViewed";
 
 interface ProductPageProps {
   params: { slug: string };
@@ -30,14 +36,21 @@ async function getProduct(slug: string) {
       images: { orderBy: { sortOrder: "asc" } },
       reviews: {
         where: { status: "APPROVED" },
-        select: { rating: true, body: true, createdAt: true, user: { select: { firstName: true } } },
+        select: { id: true, rating: true, body: true, createdAt: true, user: { select: { firstName: true } } },
         take: 3,
         orderBy: { createdAt: "desc" },
       },
+      _count: { select: { reviews: { where: { status: "APPROVED" } } } },
     },
   });
   if (!product) return null;
-  return { ...product, price: Number(product.price) };
+
+  const avgRating = await prisma.review.aggregate({
+    where: { productId: product.id, status: "APPROVED" },
+    _avg: { rating: true },
+  });
+
+  return { ...product, price: Number(product.price), reviewCount: product._count.reviews, avgRating: avgRating._avg.rating ? Number(avgRating._avg.rating.toFixed(1)) : null };
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
@@ -45,9 +58,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!product) notFound();
 
   const inStock = product.stock > 0;
-  const avgRating = product.reviews.length > 0
-    ? (product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length).toFixed(1)
-    : null;
+  const { avgRating, reviewCount } = product;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -68,7 +79,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       aggregateRating: {
         "@type": "AggregateRating",
         ratingValue: avgRating,
-        reviewCount: product.reviews.length,
+        reviewCount: reviewCount,
       },
     } : {}),
   };
@@ -102,25 +113,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </nav>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="space-y-4">
-            {product.images.map((image) => (
-              <div key={image.id} className="aspect-square overflow-hidden rounded-lg bg-primary/5">
-                <Image
-                  src={image.url}
-                  alt={image.altText ?? product.name}
-                  width={600}
-                  height={600}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ))}
-            {product.images.length === 0 && (
-              <div className="flex aspect-square items-center justify-center rounded-lg bg-primary/5 text-foreground/30">
-                <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
+          <div>
+            <ProductImageGallery images={product.images} productName={product.name} />
           </div>
 
           <div className="space-y-6">
@@ -148,6 +142,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <p className="mt-1 text-sm text-foreground/60 leading-relaxed">{product.description}</p>
             </div>
 
+            <VariantSelector />
             <div className="space-y-3 pt-2">
               <AddToCartButton productId={product.id} productName={product.name} stock={product.stock} />
             </div>
@@ -181,15 +176,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </dl>
             </div>
 
-            {product.reviews.length > 0 && (
-              <div className="border-t border-primary/10 pt-6">
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-sm font-semibold text-foreground">Reviews</h2>
-                  {avgRating && <span className="text-sm text-foreground/50">({avgRating} avg, {product.reviews.length} review{product.reviews.length !== 1 ? "s" : ""})</span>}
-                </div>
+            <div className="border-t border-primary/10 pt-6">
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-sm font-semibold text-foreground">Reviews</h2>
+                {avgRating && <span className="text-sm text-foreground/50">({avgRating} avg, {reviewCount} review{reviewCount !== 1 ? "s" : ""})</span>}
+              </div>
+              {reviewCount > 0 ? (
                 <div className="mt-4 space-y-4">
-                  {product.reviews.map((review, i) => (
-                    <div key={i} className="border-b border-primary/5 pb-3 last:border-0">
+                  {product.reviews.map((review) => (
+                    <div key={review.id} className="border-b border-primary/5 pb-3 last:border-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground">{review.user.firstName}</span>
                         <span className="text-xs text-foreground/30">{new Date(review.createdAt).toLocaleDateString()}</span>
@@ -198,9 +193,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
                       <p className="mt-1 text-sm text-foreground/60">{review.body}</p>
                     </div>
                   ))}
+                  <AllReviews productSlug={product.slug} />
                 </div>
+              ) : (
+                <p className="mt-4 text-sm text-foreground/50">No reviews yet. Be the first to review this product!</p>
+              )}
+              <div className="mt-6 border-t border-primary/5 pt-6">
+                <h3 className="mb-4 text-sm font-semibold text-foreground">Write a Review</h3>
+                <ReviewForm productSlug={product.slug} />
               </div>
-            )}
+            </div>
 
             {!inStock && (
               <div className="rounded-lg border border-primary/10 p-4 text-center">
@@ -211,6 +213,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
         </div>
       </div>
+
+      <RelatedProducts currentProductId={product.id} categoryId={product.category.id} />
+      <TrackRecentlyViewed slug={product.slug} />
+      <RecentlyViewed currentSlug={product.slug} />
     </>
   );
 }

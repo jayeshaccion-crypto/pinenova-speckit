@@ -5,15 +5,17 @@ import { ProductsFilterBar } from "@/components/ProductsFilterBar";
 import { Suspense } from "react";
 
 interface ProductsPageProps {
-  searchParams: { category?: string; material?: string; sort?: string; page?: string };
+  searchParams: { q?: string; category?: string; material?: string; sort?: string; page?: string };
 }
 
 export const revalidate = 60;
 
 export async function generateMetadata({ searchParams }: ProductsPageProps): Promise<Metadata> {
-  const title = searchParams.category
-    ? `${searchParams.category.charAt(0).toUpperCase() + searchParams.category.slice(1)}`
-    : "All Products";
+  const title = searchParams.q
+    ? `Search: "${searchParams.q}"`
+    : searchParams.category
+      ? `${searchParams.category.charAt(0).toUpperCase() + searchParams.category.slice(1)}`
+      : "All Products";
   return {
     title,
     description: `Browse our ${title.toLowerCase()} — sustainable vegan leather accessories from PineNova.`,
@@ -28,6 +30,12 @@ async function getProducts(params: Record<string, string | undefined>) {
 
   if (params.category) where.category = { slug: params.category };
   if (params.material) where.materialTag = params.material;
+  if (params.q) {
+    where.OR = [
+      { name: { contains: params.q, mode: "insensitive" } },
+      { description: { contains: params.q, mode: "insensitive" } },
+    ];
+  }
 
   let orderBy: any = { createdAt: "desc" };
   if (params.sort === "price_asc") orderBy = { price: "asc" };
@@ -52,12 +60,14 @@ async function getProducts(params: Record<string, string | undefined>) {
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { category, material, sort = "newest", page } = searchParams;
-  const data = await getProducts({ category, material, sort, page });
+  const { q, category, material, sort = "newest", page } = searchParams;
+  const data = await getProducts({ q, category, material, sort, page });
 
-  const title = searchParams.category
-    ? `${searchParams.category.charAt(0).toUpperCase() + searchParams.category.slice(1)}`
-    : "All Products";
+  const title = searchParams.q
+    ? `Search: "${searchParams.q}"`
+    : searchParams.category
+      ? `${searchParams.category.charAt(0).toUpperCase() + searchParams.category.slice(1)}`
+      : "All Products";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

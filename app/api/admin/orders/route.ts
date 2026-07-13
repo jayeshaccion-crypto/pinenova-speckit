@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { requireAdmin, adminAudit, isValidTransition } from "@/lib/admin-utils";
 import { checkCSRF } from "@/lib/api-utils";
 import { AdminStatusUpdateSchema, AdminRefundSchema } from "@/types";
+import { sendEmail, emailTemplates } from "@/lib/email";
 
 export async function GET(request: Request) {
   try {
@@ -11,10 +12,11 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "25")));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20")));
     const status = url.searchParams.get("status");
     const dateFrom = url.searchParams.get("dateFrom");
     const dateTo = url.searchParams.get("dateTo");
+    const customer = url.searchParams.get("customer");
 
     const where: any = {};
     if (status) where.status = status;
@@ -22,6 +24,14 @@ export async function GET(request: Request) {
       where.createdAt = {};
       if (dateFrom) where.createdAt.gte = new Date(dateFrom);
       if (dateTo) where.createdAt.lte = new Date(dateTo);
+    }
+    if (customer) {
+      where.OR = [
+        { email: { contains: customer, mode: "insensitive" } },
+        { user: { firstName: { contains: customer, mode: "insensitive" } } },
+        { user: { lastName: { contains: customer, mode: "insensitive" } } },
+        { orderNumber: { contains: customer, mode: "insensitive" } },
+      ];
     }
 
     const [orders, total] = await Promise.all([
@@ -68,7 +78,7 @@ export async function PATCH(request: Request) {
     const updated = await prisma.order.update({
       where: { id: parsed.data.orderId },
       data: {
-        status: parsed.data.status as any,
+        status: parsed.data.status,
         trackingNumber: parsed.data.trackingNumber,
         carrier: parsed.data.carrier,
       },
@@ -86,6 +96,14 @@ export async function PATCH(request: Request) {
 
     logger.info({ orderId: parsed.data.orderId, from: order.status, to: parsed.data.status, adminId: auth.sub }, "Admin updated order status");
     await adminAudit({ adminId: auth.sub, action: "ORDER_STATUS_UPDATED", entity: "Order", entityId: parsed.data.orderId, before: { status: order.status }, after: { status: parsed.data.status } });
+
+    if (parsed.data.status === "SHIPPED" && order.email) {
+      const emailRes = emailTemplates.shippingNotification(order.orderNumber, parsed.data.trackingNumber || undefined);
+      sendEmail({ to: order.email, ...emailRes }).catch((e) => logger.error({ error: e, orderId: order.id }, "Failed to send shipping notification"));
+    } else if (parsed.data.status === "CANCELLED" && order.email) {
+      const emailRes = emailTemplates.orderCancellation(order.orderNumber, parsed.data.reason || undefined);
+      sendEmail({ to: order.email, ...emailRes }).catch((e) => logger.error({ error: e, orderId: order.id }, "Failed to send cancellation email"));
+    }
 
     return Response.json({ data: updated });
   } catch (error) {
@@ -129,7 +147,8 @@ export async function POST(request: Request) {
     let stripe;
     try {
       stripe = (await import("@/lib/stripe")).stripe;
-    } catch {
+    } catch (error: any) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
       logger.error({}, "Stripe not configured — simulating refund");
       const updated = await prisma.order.update({
         where: { id: parsed.data.orderId },
@@ -138,6 +157,10 @@ export async function POST(request: Request) {
       await prisma.orderStatusLog.create({ data: { orderId: parsed.data.orderId, fromStatus: order.status, toStatus: "REFUNDED", changedBy: auth.sub, reason: parsed.data.reason || "Refunded" } });
       logger.info({ orderId: parsed.data.orderId, adminId: auth.sub }, "Admin issued simulated refund");
       await adminAudit({ adminId: auth.sub, action: "ORDER_REFUNDED", entity: "Order", entityId: parsed.data.orderId, before: { status: order.status }, after: { status: "REFUNDED" } });
+      if (order.email) {
+        const emailRes = emailTemplates.refundProcessed(order.orderNumber, Number(order.total).toFixed(2));
+        sendEmail({ to: order.email, ...emailRes }).catch((e) => logger.error({ error: e, orderId: order.id }, "Failed to send refund email"));
+      }
       return Response.json({ data: updated, message: "Simulated refund processed (Stripe not configured)" });
     }
 
@@ -158,6 +181,11 @@ export async function POST(request: Request) {
 
     logger.info({ orderId: parsed.data.orderId, refundId: refund.id, adminId: auth.sub }, "Admin issued refund");
     await adminAudit({ adminId: auth.sub, action: "ORDER_REFUNDED", entity: "Order", entityId: parsed.data.orderId, before: { status: order.status }, after: { status: "REFUNDED", refundId: refund.id } });
+
+    if (order.email) {
+      const emailRes = emailTemplates.refundProcessed(order.orderNumber, Number(order.total).toFixed(2));
+      sendEmail({ to: order.email, ...emailRes }).catch((e) => logger.error({ error: e, orderId: order.id }, "Failed to send refund email"));
+    }
 
     return Response.json({ data: updated, message: "Refund processed" });
   } catch (error) {

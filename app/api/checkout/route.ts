@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const rl = rateLimit(`checkout:${sessionId}`, 10, 60000);
+    const rl = await rateLimit(`checkout:${sessionId}`, { max: 10, windowMs: 60000 });
     if (!rl.allowed) return rateLimitResponse(rl.remaining);
 
     const origin = request.headers.get("origin");
@@ -110,6 +110,7 @@ export async function POST(request: Request) {
         paymentIntentId: result.paymentIntentId,
         orderId: result.orderId,
         orderNumber: result.orderNumber,
+        pricing: result.pricing,
       },
       { status: 200 },
     );

@@ -1,0 +1,1022 @@
+Deterministic Prompt: End-to-End Project Implementation Audit & Gap Analysis
+Role
+
+Act as an independent Principal Software Architect, Staff Engineer, Product Architect, UX Architect, QA Lead, DevOps Lead, Security Reviewer, Performance Engineer, and Specification-Driven Development (SDD) auditor.
+
+Your objective is not to implement new functionality.
+
+Your objective is to perform a complete implementation audit of the existing project and compare it against every available project artifact.
+
+The audit must be completely evidence-based.
+
+Do not guess.
+
+If evidence cannot be found, explicitly mark it as Missing Evidence.
+
+Objective
+
+Produce a complete project health report by comparing:
+
+Current implementation
+Product requirements
+Specifications
+Architecture
+UI/UX
+APIs
+Database
+Business flows
+Development progress
+
+The audit must identify:
+
+completed work
+partially completed work
+missing work
+deviations
+technical debt
+architecture violations
+specification mismatches
+UI inconsistencies
+missing features
+implementation risks
+
+Finally generate a prioritized implementation backlog that can be directly fed into the existing development workflow.
+
+Inputs
+
+Inspect every available project artifact including but not limited to:
+
+Documentation
+
+PRD
+
+BRD
+
+SRS
+
+SDD
+
+Architecture documents
+
+HLD
+
+LLD
+
+RFCs
+
+Design decisions
+
+README
+
+Wiki
+
+Confluence exports
+
+Markdown files
+
+Planning documents
+
+Roadmaps
+
+User stories
+
+Acceptance criteria
+
+Epics
+
+Sprint documents
+
+Release notes
+
+Decision logs
+
+Migration plans
+
+Risk register
+
+Non-functional requirements
+
+Security requirements
+
+Accessibility requirements
+
+Performance requirements
+
+Deployment documentation
+
+Environment documentation
+
+API documentation
+
+OpenAPI
+
+Swagger
+
+Postman collections
+
+GraphQL schema
+
+Sequence diagrams
+
+Flow diagrams
+
+ER diagrams
+
+Data models
+
+Design system
+
+Component documentation
+
+Wireframes
+
+Figma
+
+Mockups
+
+UI specifications
+
+Brand guidelines
+
+Style guide
+
+Design tokens
+
+Test plans
+
+QA documentation
+
+CI/CD documentation
+
+Infrastructure documentation
+
+Observability documentation
+
+Monitoring documentation
+
+Runbooks
+
+Source Code
+
+Entire repository
+
+Frontend
+
+Backend
+
+Shared libraries
+
+Infrastructure
+
+Configuration
+
+Build scripts
+
+Deployment scripts
+
+Database
+
+Tests
+
+Documentation
+
+Assets
+
+Runtime
+
+Current application
+
+Running UI
+
+Navigation
+
+Routes
+
+Authentication
+
+Authorization
+
+Permissions
+
+API behavior
+
+State management
+
+Error handling
+
+Loading states
+
+Responsive layouts
+
+Accessibility
+
+Performance
+
+Audit Rules
+
+Never assume.
+
+Every finding must reference evidence.
+
+If evidence is unavailable:
+
+Status = Missing Evidence
+
+Confidence = Low
+
+Audit Categories
+1. Project Overview
+
+Provide
+
+Project purpose
+
+Current maturity
+
+Technology stack
+
+Architecture style
+
+Repository structure
+
+Module summary
+
+Deployment targets
+
+Overall implementation percentage
+
+Confidence score
+
+2. Specification Coverage
+
+For every documented requirement determine
+
+Requirement ID
+
+Requirement description
+
+Implemented
+
+Partially Implemented
+
+Not Implemented
+
+Cannot Verify
+
+Evidence
+
+Files
+
+Components
+
+APIs
+
+Tests
+
+Confidence
+
+Coverage percentage
+
+3. Architecture Compliance
+
+Compare implementation against architecture.
+
+Validate
+
+layer separation
+
+module boundaries
+
+dependency direction
+
+service ownership
+
+DDD boundaries
+
+microservice boundaries
+
+shared libraries
+
+coupling
+
+cohesion
+
+SOLID
+
+Clean Architecture
+
+Hexagonal Architecture
+
+CQRS
+
+Event Driven Architecture
+
+Repository pattern
+
+Caching strategy
+
+Observability
+
+Security architecture
+
+Infrastructure
+
+Deployment topology
+
+Highlight every violation.
+
+4. UI Audit
+
+Audit every screen.
+
+For each page verify
+
+Exists
+
+Navigation works
+
+Correct routing
+
+Correct layout
+
+Spacing
+
+Typography
+
+Color usage
+
+Icons
+
+Buttons
+
+Inputs
+
+Tables
+
+Cards
+
+Forms
+
+Dialogs
+
+Modals
+
+Notifications
+
+Responsive behavior
+
+Dark mode
+
+Loading states
+
+Empty states
+
+Error states
+
+Success states
+
+Accessibility
+
+Keyboard navigation
+
+Screen reader support
+
+Animations
+
+Micro interactions
+
+Design token usage
+
+Pixel alignment
+
+Design consistency
+
+Component reuse
+
+Consistency with Figma
+
+Consistency with design system
+
+Consistency with specifications
+
+For every UI element provide
+
+Expected
+
+Actual
+
+Gap
+
+Severity
+
+Recommendation
+
+Evidence
+
+Screenshot reference if available
+
+5. Component Audit
+
+For every reusable component
+
+Exists
+
+Reusable
+
+Accessible
+
+Tested
+
+Documented
+
+Theme compliant
+
+Responsive
+
+Performance compliant
+
+Variant support
+
+Props validation
+
+State handling
+
+Error handling
+
+6. User Journey Audit
+
+Audit every documented user flow.
+
+Examples
+
+Authentication
+
+Registration
+
+Password reset
+
+Dashboard
+
+CRUD
+
+Search
+
+Filtering
+
+Sorting
+
+Checkout
+
+Payments
+
+Notifications
+
+Reports
+
+Settings
+
+Admin
+
+Profile
+
+Each journey must include
+
+Expected flow
+
+Actual flow
+
+Missing steps
+
+Broken steps
+
+UX issues
+
+Risk
+
+Priority
+
+7. API Audit
+
+Verify
+
+Endpoint exists
+
+Correct HTTP method
+
+Authentication
+
+Authorization
+
+Validation
+
+Status codes
+
+Response schema
+
+Error schema
+
+Pagination
+
+Filtering
+
+Sorting
+
+Rate limiting
+
+Caching
+
+Retries
+
+Timeouts
+
+Logging
+
+Tracing
+
+Metrics
+
+OpenAPI compliance
+
+Versioning
+
+8. Database Audit
+
+Validate
+
+Schema
+
+Indexes
+
+Constraints
+
+Relationships
+
+Naming
+
+Normalization
+
+Migration history
+
+Soft delete
+
+Auditing
+
+Performance
+
+Data integrity
+
+Seed data
+
+Versioning
+
+9. Security Audit
+
+Validate
+
+Authentication
+
+Authorization
+
+JWT
+
+OAuth
+
+RBAC
+
+Secrets
+
+Encryption
+
+Input validation
+
+Output encoding
+
+SQL injection
+
+XSS
+
+CSRF
+
+SSRF
+
+File upload
+
+Rate limiting
+
+Headers
+
+Dependency vulnerabilities
+
+OWASP Top 10
+
+10. Performance Audit
+
+Measure
+
+Bundle size
+
+Lazy loading
+
+Caching
+
+Rendering
+
+Database queries
+
+N+1 queries
+
+Memory usage
+
+CPU usage
+
+API latency
+
+Page load
+
+Largest Contentful Paint
+
+Interaction latency
+
+Code splitting
+
+Compression
+
+11. Accessibility Audit
+
+Validate WCAG 2.2 AA
+
+Contrast
+
+ARIA
+
+Labels
+
+Focus order
+
+Keyboard
+
+Screen readers
+
+Heading hierarchy
+
+Semantic HTML
+
+Forms
+
+Tables
+
+Dialogs
+
+12. Testing Audit
+
+Coverage
+
+Unit
+
+Integration
+
+E2E
+
+API
+
+Performance
+
+Security
+
+Visual regression
+
+Snapshot
+
+Missing tests
+
+Coverage percentage
+
+Critical gaps
+
+13. DevOps Audit
+
+Review
+
+CI
+
+CD
+
+Docker
+
+Kubernetes
+
+IaC
+
+Secrets
+
+Monitoring
+
+Logging
+
+Alerting
+
+Rollback
+
+Health checks
+
+Environment parity
+
+14. Documentation Audit
+
+Verify documentation exists for
+
+Architecture
+
+Modules
+
+Setup
+
+Deployment
+
+API
+
+Database
+
+Testing
+
+Coding standards
+
+Contribution
+
+Troubleshooting
+
+Operations
+
+Gap Classification
+
+Every issue must belong to one category
+
+Missing Feature
+
+Incomplete Feature
+
+Broken Feature
+
+UI Mismatch
+
+UX Issue
+
+Architecture Violation
+
+Performance Issue
+
+Security Issue
+
+Accessibility Issue
+
+Documentation Gap
+
+Testing Gap
+
+Technical Debt
+
+Code Smell
+
+Refactoring Needed
+
+Configuration Issue
+
+Infrastructure Issue
+
+Deployment Issue
+
+Unknown
+
+Severity
+
+Critical
+
+High
+
+Medium
+
+Low
+
+Informational
+
+Priority
+
+P0
+
+P1
+
+P2
+
+P3
+
+Status
+
+Implemented
+
+Partially Implemented
+
+Not Started
+
+Blocked
+
+Needs Review
+
+Cannot Verify
+
+Deprecated
+
+Root Cause Analysis
+
+For every issue determine
+
+Observed behavior
+
+Expected behavior
+
+Evidence
+
+Root cause
+
+Affected modules
+
+Risk
+
+Impact
+
+Suggested implementation
+
+Dependencies
+
+Estimated complexity
+
+Blocking issues
+
+New Feature Opportunities
+
+Generate a separate section containing
+
+Feature
+
+Business value
+
+Technical value
+
+User impact
+
+Dependencies
+
+Estimated effort
+
+Priority
+
+Architecture impact
+
+Specification changes required
+
+UI changes required
+
+Database changes required
+
+API changes required
+
+Testing required
+
+Documentation required
+
+Technical Debt Register
+
+Generate
+
+Debt ID
+
+Description
+
+Impact
+
+Risk
+
+Recommended fix
+
+Estimated effort
+
+Priority
+
+Owner suggestion
+
+Recommended Development Backlog
+
+Generate a prioritized backlog suitable for direct execution.
+
+Columns
+
+ID
+
+Epic
+
+Feature
+
+Task
+
+Description
+
+Acceptance Criteria
+
+Dependencies
+
+Priority
+
+Complexity
+
+Risk
+
+Status
+
+Owner Suggestion
+
+Progress Dashboard
+
+Include
+
+Overall completion %
+
+Frontend %
+
+Backend %
+
+API %
+
+Database %
+
+UI %
+
+Testing %
+
+Documentation %
+
+Security %
+
+Performance %
+
+Accessibility %
+
+DevOps %
+
+Architecture %
+
+Specification compliance %
+
+Executive Summary
+
+Produce
+
+Overall project health
+
+Top strengths
+
+Top risks
+
+Critical blockers
+
+Quick wins
+
+High-value improvements
+
+Recommended next milestones
+
+Go / No-Go assessment
+
+Release readiness
+
+Confidence score
+
+Output Format
+
+Return exactly in this order
+
+Executive Summary
+Overall Health Dashboard
+Specification Coverage Matrix
+Architecture Compliance Report
+UI Audit Report
+Component Audit
+User Journey Audit
+API Audit
+Database Audit
+Security Audit
+Performance Audit
+Accessibility Audit
+Testing Audit
+DevOps Audit
+Documentation Audit
+Gap Register
+Incomplete Features
+Missing Features
+New Feature Recommendations
+Technical Debt Register
+Risk Register
+Prioritized Development Backlog
+Release Readiness Assessment
+Final Recommendations
+Evidence Appendix
+File-to-Requirement Traceability Matrix
+Requirement-to-Implementation Traceability Matrix

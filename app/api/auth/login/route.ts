@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { comparePassword, signAccessToken, signRefreshToken } from "@/lib/auth";
 import { LoginSchema } from "@/types";
 import { apiError, apiSuccess, handleApiError, checkCSRF } from "@/lib/api-utils";
-import { checkAuthRateLimit } from "@/lib/rate-limiter";
+import { rateLimit } from "@/lib/rate-limit";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request) {
@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     const { email, password } = parsed.data;
     const ip = request.headers.get("x-forwarded-for") || "unknown";
 
-    if (!checkAuthRateLimit(`login:${email}`, 10, 60000)) {
+    const rl = await rateLimit(`login:${email}`, { max: 10, windowMs: 60000 });
+    if (!rl.allowed) {
       logger.warn({ email: email.slice(0, 3) + "***", ip }, "Login rate limited");
       return apiError("RATE_LIMITED", "Too many login attempts. Please try again later.", 429);
     }
@@ -43,6 +44,12 @@ export async function POST(request: Request) {
       return apiError("INVALID_CREDENTIALS", "Invalid email or password", 401);
     }
 
+    if (user.totpEnabled) {
+      const tempToken = await signAccessToken({ sub: user.id, role: "2FA_PENDING" });
+      logger.info({ userId: user.id, email: email.slice(0, 3) + "***", ip }, "Login — 2FA required");
+      return apiSuccess({ requiresTwoFactor: true, tempToken });
+    }
+
     const accessToken = await signAccessToken({ sub: user.id, role: user.role });
     const refreshToken = await signRefreshToken(user.id);
 
@@ -53,6 +60,13 @@ export async function POST(request: Request) {
       accessToken,
       refreshToken,
       user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+    });
+    response.cookies.set("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 15,
     });
     response.cookies.set("refreshToken", refreshToken, {
       httpOnly: true,

@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { hashPassword } from "@/lib/auth";
 import { RegisterSchema } from "@/types";
 import { apiError, apiSuccess, handleApiError, checkCSRF } from "@/lib/api-utils";
-import { checkAuthRateLimit } from "@/lib/rate-limiter";
+import { rateLimit } from "@/lib/rate-limit";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request) {
@@ -12,7 +12,8 @@ export async function POST(request: Request) {
     if (csrf) return csrf;
 
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (!checkAuthRateLimit(`register:${ip}`, 5, 60000)) {
+    const rl = await rateLimit(`register:${ip}`, { max: 5, windowMs: 60000 });
+    if (!rl.allowed) {
       return apiError("RATE_LIMITED", "Too many registration attempts. Please try again later.", 429);
     }
 

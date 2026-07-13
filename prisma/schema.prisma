@@ -97,6 +97,8 @@ model User {
   status       UserStatus      @default(ACTIVE)
   provider     String?         @default("email")
   providerId   String?
+  totpSecret   String?
+  totpEnabled  Boolean         @default(false)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   cart         Cart?
@@ -266,9 +268,12 @@ model WebhookEvent {
   type        String
   status      String    @default("received")
   processedAt DateTime?
+  data        String?
+  error       String?
   createdAt   DateTime  @default(now())
 
   @@index([eventId])
+  @@index([status])
 }
 
 model RefreshToken {

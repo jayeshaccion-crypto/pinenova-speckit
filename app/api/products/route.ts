@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 
 const querySchema = z.object({
+  q: z.string().min(2).max(200).optional(),
   category: z.string().optional(),
   material: z.string().optional(),
   minPrice: z.coerce.number().min(0).optional(),
@@ -11,6 +12,7 @@ const querySchema = z.object({
   sort: z.enum(["price_asc", "price_desc", "newest", "popularity"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  slugs: z.string().optional(),
 }).refine(
   (d) => d.minPrice === undefined || d.maxPrice === undefined || d.minPrice <= d.maxPrice,
   { message: "minPrice must not exceed maxPrice", path: ["minPrice"] },
@@ -29,9 +31,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { category, material, minPrice, maxPrice, sort, page, limit } = parsed.data;
+    const { q, category, material, minPrice, maxPrice, sort, page, limit, slugs } = parsed.data;
 
     const where: any = { published: true };
+
+    if (slugs) {
+      const slugList = slugs.split(",").slice(0, 50);
+      where.slug = { in: slugList };
+    }
+
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+      ];
+    }
 
     if (category) {
       where.category = { slug: category };

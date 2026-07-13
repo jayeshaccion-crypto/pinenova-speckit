@@ -1,22 +1,13 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { env } from "./env";
 
-const JWT_SECRET_ENV = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET_ENV = process.env.JWT_REFRESH_SECRET;
+const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
+const JWT_REFRESH_SECRET = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
 
-if (!JWT_SECRET_ENV) {
-  throw new Error("JWT_SECRET environment variable is required");
-}
-if (!JWT_REFRESH_SECRET_ENV) {
-  throw new Error("JWT_REFRESH_SECRET environment variable is required");
-}
-
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_ENV);
-const JWT_REFRESH_SECRET = new TextEncoder().encode(JWT_REFRESH_SECRET_ENV);
-
-const ACCESS_TOKEN_TTL = process.env.JWT_ACCESS_TTL || "15m";
-const REFRESH_TOKEN_TTL = process.env.JWT_REFRESH_TTL || "7d";
+const ACCESS_TOKEN_TTL = env.JWT_ACCESS_TTL;
+const REFRESH_TOKEN_TTL = env.JWT_REFRESH_TTL;
 const BCRYPT_ROUNDS = 12;
 
 function parseDuration(duration: string): number {
@@ -57,7 +48,7 @@ export async function signRefreshToken(userId: string): Promise<string> {
 
   const refreshTtlMs = parseDuration(REFRESH_TOKEN_TTL);
   const expiresAt = new Date(Date.now() + refreshTtlMs);
-  const tokenHash = await bcrypt.hash(token, 10);
+  const tokenHash = await bcrypt.hash(token, BCRYPT_ROUNDS);
 
   await prisma.refreshToken.create({
     data: { userId, tokenHash, expiresAt },
@@ -75,7 +66,7 @@ export async function verifyAccessToken(token: string): Promise<{ sub: string; r
   }
 }
 
-export async function rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+export async function rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string; userId: string } | null> {
   const storedTokens = await prisma.refreshToken.findMany({
     where: { expiresAt: { gt: new Date() } },
   });
@@ -100,7 +91,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{ accessToke
   });
   const refreshToken = await signRefreshToken(userId);
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, userId };
 }
 
 export async function invalidateRefreshToken(token: string): Promise<void> {

@@ -50,6 +50,7 @@ export const UpdateProfileSchema = z.object({
   lastName: z.string().min(1).max(100).regex(/^[a-zA-ZÀ-ÿ '-]+$/).optional(),
   email: z.string().email().max(255).optional(),
   currentPassword: z.string().min(1).optional(),
+  password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).optional(),
 });
 
 // ─── Product Schemas ───
@@ -262,3 +263,48 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
+
+// ─── 2FA Schemas ───
+
+export const TwoFactorSetupSchema = z.object({
+  password: z.string().min(1),
+});
+
+export const TwoFactorVerifySchema = z.object({
+  token: z.string().length(6).regex(/^\d{6}$/),
+  secret: z.string().min(10),
+});
+
+export const TwoFactorDisableSchema = z.object({
+  password: z.string().min(1),
+  token: z.string().length(6).regex(/^\d{6}$/),
+});
+
+export const TwoFactorChallengeSchema = z.object({
+  tempToken: z.string().min(1),
+  token: z.string().length(6).regex(/^\d{6}$/),
+});
+
+// ─── Admin User Management ───
+
+export const AdminUserUpdateSchema = z.object({
+  userId: z.string().min(1),
+  role: UserRoleEnum.optional(),
+  status: UserStatusEnum.optional(),
+});
+
+// ─── Webhook & Admin Schemas ───
+
+export const AdminRateLimitResetSchema = z.object({
+  key: z.string().min(1),
+});
+
+export const AdminWebhookReplaySchema = z.object({
+  webhookEventId: z.string().uuid(),
+});
+
+export type TwoFactorSetupInput = z.infer<typeof TwoFactorSetupSchema>;
+export type TwoFactorVerifyInput = z.infer<typeof TwoFactorVerifySchema>;
+export type TwoFactorDisableInput = z.infer<typeof TwoFactorDisableSchema>;
+export type TwoFactorChallengeInput = z.infer<typeof TwoFactorChallengeSchema>;
+export type AdminUserUpdateInput = z.infer<typeof AdminUserUpdateSchema>;

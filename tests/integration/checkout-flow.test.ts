@@ -71,7 +71,9 @@ describe("calculatePricingWithDiscount", () => {
     );
     expect(result.subtotal).toBe(5000);
     expect(result.discountAmount).toBe(0);
-    expect(result.total).toBeGreaterThan(0);
+    expect(result.shippingCost).toBe(800);
+    expect(result.taxAmount).toBe(500);
+    expect(result.total).toBe(6300);
   });
 
   it("applies percentage discount", async () => {
@@ -81,15 +83,16 @@ describe("calculatePricingWithDiscount", () => {
     });
 
     const result = await calculatePricingWithDiscount(
-      [{ quantity: 1, unitPrice: 10000 }],
+      [{ quantity: 1, unitPrice: 12000 }],
       "CA",
       "SAVE10",
     );
 
-    expect(result.subtotal).toBe(10000);
-    expect(result.discountAmount).toBe(1000);
-    expect(result.taxAmount).toBe(653);
-    expect(result.total).toBe(9653);
+    expect(result.subtotal).toBe(12000);
+    expect(result.discountAmount).toBe(1200);
+    expect(result.shippingCost).toBe(0);
+    expect(result.taxAmount).toBe(1080);
+    expect(result.total).toBe(11880);
   });
 
   it("clamps discount to subtotal", async () => {
@@ -106,9 +109,9 @@ describe("calculatePricingWithDiscount", () => {
 
     expect(result.subtotal).toBe(5000);
     expect(result.discountAmount).toBe(5000);
-    expect(result.shippingCost).toBe(599);
+    expect(result.shippingCost).toBe(800);
     expect(result.taxAmount).toBe(0);
-    expect(result.total).toBe(599);
+    expect(result.total).toBe(800);
   });
 
   it("100% percentage discount sets total to shipping + tax (never negative)", async () => {
@@ -130,10 +133,10 @@ describe("calculatePricingWithDiscount", () => {
 
     expect(result.subtotal).toBe(5000);
     expect(result.discountAmount).toBe(5000);
-    expect(result.shippingCost).toBe(599);
+    expect(result.shippingCost).toBe(800);
     expect(result.taxAmount).toBe(0);
     expect(result.total).toBeGreaterThanOrEqual(0);
-    expect(result.total).toBe(599);
+    expect(result.total).toBe(800);
   });
 });
 

@@ -66,6 +66,14 @@ function CheckoutForm({ clientSecret, onConfirm, submitting, error }: {
   );
 }
 
+interface PricingBreakdown {
+  subtotal: number;
+  discountAmount: number;
+  shippingCost: number;
+  taxAmount: number;
+  total: number;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartData | null>(null);
@@ -74,6 +82,7 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [discountCode, setDiscountCode] = useState("");
+  const [pricing, setPricing] = useState<PricingBreakdown | null>(null);
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: "",
@@ -140,6 +149,9 @@ export default function CheckoutPage() {
       }
 
       setClientSecret(data.clientSecret);
+      if (data.pricing) {
+        setPricing(data.pricing);
+      }
     } catch {
       setError("Network error. Please check your connection.");
       setSubmitting(false);
@@ -154,7 +166,6 @@ export default function CheckoutPage() {
     setError(null);
 
     const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
-      elements: undefined as any,
       clientSecret,
       confirmParams: { return_url: `${window.location.origin}/checkout/confirmation` },
       redirect: "if_required",
@@ -231,6 +242,36 @@ export default function CheckoutPage() {
             </>
           ) : null}
 
+          {pricing && (
+            <section className="card p-6">
+              <h2 className="text-base font-semibold text-foreground">Order Review</h2>
+              <dl className="mt-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-foreground/50">Subtotal</dt>
+                  <dd className="text-foreground">${pricing.subtotal.toFixed(2)}</dd>
+                </div>
+                {pricing.discountAmount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <dt>Discount</dt>
+                    <dd>-${pricing.discountAmount.toFixed(2)}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-foreground/50">Shipping</dt>
+                  <dd className="text-foreground">{pricing.shippingCost > 0 ? `$${pricing.shippingCost.toFixed(2)}` : "Free"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-foreground/50">Tax</dt>
+                  <dd className="text-foreground">${pricing.taxAmount.toFixed(2)}</dd>
+                </div>
+              <div className="flex justify-between border-t border-primary/10 pt-3 text-base font-semibold">
+                <dt className="text-foreground">Total</dt>
+                <dd className="text-foreground">${pricing.total.toFixed(2)}</dd>
+              </div>
+              </dl>
+            </section>
+          )}
+
           <section className="card p-6">
             <h2 className="text-base font-semibold text-foreground">Payment</h2>
             <div className="mt-4">
@@ -275,13 +316,38 @@ export default function CheckoutPage() {
                 <dt className="text-foreground/50">Subtotal ({cart.itemCount} item{cart.itemCount !== 1 ? "s" : ""})</dt>
                 <dd className="font-medium text-foreground">${cart.subtotal.toFixed(2)}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground/50">Shipping</dt>
-                <dd className="text-foreground/50">Calculated at checkout</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground/50">Tax</dt>
-                <dd className="text-foreground/50">Calculated at checkout</dd>
+              {pricing ? (
+                <>
+                  {pricing.discountAmount > 0 && (
+                    <div className="flex justify-between text-green-700">
+                      <dt>Discount</dt>
+                      <dd>-${pricing.discountAmount.toFixed(2)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <dt className="text-foreground/50">Shipping</dt>
+                    <dd className="text-foreground">{pricing.shippingCost > 0 ? `$${pricing.shippingCost.toFixed(2)}` : "Free"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground/50">Tax</dt>
+                    <dd className="text-foreground">${pricing.taxAmount.toFixed(2)}</dd>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground/50">Shipping</dt>
+                    <dd className="text-foreground/50">Calculated at checkout</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground/50">Tax</dt>
+                    <dd className="text-foreground/50">Calculated at checkout</dd>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between border-t border-primary/10 pt-3 text-base font-semibold">
+                <dt className="text-foreground">Total</dt>
+                <dd className="text-foreground">${pricing ? pricing.total.toFixed(2) : cart.subtotal.toFixed(2)}</dd>
               </div>
             </dl>
           </div>

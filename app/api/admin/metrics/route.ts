@@ -50,12 +50,22 @@ export async function GET(request: Request) {
       ...(dateTo ? [dateTo] : []),
     );
 
-    const orderCount = await prisma.order.count({ where: { status: { not: "CANCELLED" } } });
+    const orderCount = Number(aggregation.orderCount);
+
+    const dailySales = await prisma.$queryRawUnsafe<Array<{ date: string; revenue: string; count: bigint }>>(
+      `SELECT DATE("createdAt")::text as "date", COALESCE(SUM(total::numeric), 0)::text as "revenue", COUNT(*)::bigint as "count" FROM "Order" WHERE status != 'CANCELLED' AND "createdAt" >= NOW() - INTERVAL '30 days' GROUP BY DATE("createdAt") ORDER BY DATE("createdAt") ASC`,
+    );
+
+    const topProducts = await prisma.$queryRawUnsafe<Array<{ productId: string; name: string; totalSold: string; revenue: string }>>(
+      `SELECT oi."productId", COALESCE(p.name, 'Deleted')::text as "name", SUM(oi.quantity)::text as "totalSold", SUM(oi.quantity * oi."unitPrice")::text as "revenue" FROM "OrderItem" oi JOIN "Order" o ON o.id = oi."orderId" LEFT JOIN "Product" p ON p.id = oi."productId" WHERE o.status != 'CANCELLED' GROUP BY oi."productId", p.name ORDER BY SUM(oi.quantity) DESC LIMIT 10`,
+    );
 
     return Response.json({
       totalRevenue: Math.round(parseFloat(aggregation.totalRevenue) * 100),
-      orderCount: Number(aggregation.orderCount),
+      orderCount,
       averageOrderValue: orderCount > 0 ? Math.round((parseFloat(aggregation.totalRevenue) / orderCount) * 100) : 0,
+      dailySales: dailySales.map((d) => ({ date: d.date, revenue: Math.round(parseFloat(d.revenue) * 100), count: Number(d.count) })),
+      topProducts: topProducts.map((p) => ({ productId: p.productId, name: p.name, totalSold: parseInt(p.totalSold), revenue: Math.round(parseFloat(p.revenue) * 100) })),
     });
   } catch (error) {
     logger.error({ error, context: "admin.metrics" }, "Failed to get metrics");

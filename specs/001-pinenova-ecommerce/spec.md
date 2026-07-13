@@ -179,7 +179,7 @@ Customers read SEO-optimised blog posts and guides on sustainable/vegan leather 
 - **FR-019**: The system MUST support graceful degradation — if a non-critical service fails, checkout must still work
 - **FR-020**: Structured logging and error tracking MUST be in place for checkout and payment flows
 - **FR-021**: Inventory MUST be locked via pessimistic locking during checkout to prevent oversell
-- **FR-022**: Guest checkout MUST be supported; account creation is optional during checkout
+- **FR-022**: Guest checkout is DISABLED per assumptions; account creation is REQUIRED during checkout
 - **FR-023**: Shipping MUST use flat-rate rules with free shipping above a configurable threshold
 - **FR-024**: Tax MUST use static rates per state managed via an admin-configurable table
 - **FR-025**: Product URLs MUST follow `/products/{product-slug}` format with auto-generated XML sitemap
@@ -259,13 +259,13 @@ Example structure:
 
 ### Clarification 5: Guest Checkout vs. Required Account
 
-**Decision**: Guest checkout is allowed. Customers can check out without creating an account. Post-purchase, they are offered the option to create an account to "claim" their order for order history and tracking. Account creation during checkout is optional and does not add clicks to the critical path.
+**Decision**: Guest checkout is DISABLED. All customers MUST create an account before checkout. Per `docs/00-assumptions.md:25`: "Guest Checkout — Disabled (account required)". Post-purchase account creation is not offered — account is required upfront. Cart persists via sessionId and merges on login.
 
 ### Clarification 6: Shipping & Tax Calculation
 
-**Decision (v1 — post-launch upgrade path noted)**:
-- **Shipping**: Flat-rate shipping based on order value thresholds. Free shipping on orders over $100. Otherwise a single flat rate. Single-country shipping only (US) for v1.
-- **Tax**: Static tax rate based on customer shipping address state. Rates maintained in a config table updated manually. No third-party tax engine in v1.
+**Decision (v1 — aligns with assumptions.md)**:
+- **Shipping**: Flat $8 USD per order. Free shipping on orders over $120 USD. Single-country shipping only (US) for v1.
+- **Tax**: Flat 10% tax on subtotal. Per-state rates table maintained in config for future expansion but flat 10% applied for v1.
 - **Post-launch upgrade**: Avalara or TaxJar integration scoped for v2 when multi-state/country complexity warrants it.
 
 ### Clarification 7: Data Retention & Compliance

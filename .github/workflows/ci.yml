@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+        env:
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_dummy
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build
+        env:
+          DATABASE_URL: postgres://pg:pg@localhost:5432/pinenova
+          JWT_SECRET: "ci-secret-thats-at-least-32-chars-long!!"
+          JWT_REFRESH_SECRET: "ci-refresh-secret-at-least-32-chars!!"
+          STRIPE_SECRET_KEY: sk_test_dummy
+          STRIPE_WEBHOOK_SECRET: whsec_dummy
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_dummy
+          S3_ACCESS_KEY_ID: ci-placeholder
+          S3_SECRET_ACCESS_KEY: ci-placeholder-with-min-32-chars!!!!
+          S3_BUCKET: ci-placeholder
+          SENDGRID_API_KEY: SG.ci-placeholder
+          EMAIL_FROM: ci@example.com
+          NEXT_PUBLIC_APP_URL: http://localhost:3000

@@ -32,9 +32,6 @@ function LoginForm() {
         return;
       }
 
-      localStorage.setItem("accessToken", data.accessToken);
-      document.cookie = `accessToken=${data.accessToken}; path=/; max-age=${60 * 15}; SameSite=Lax`;
-
       router.push(redirect);
     } catch {
       setError("Network error. Please try again.");

@@ -100,7 +100,7 @@ async function verifyProductExists(productId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const rl = rateLimit(rateLimitKey(request));
+    const rl = await rateLimit(rateLimitKey(request));
     if (!rl.allowed) return rateLimitResponse(rl.remaining);
 
     const authUser = await getAuthUser(request);
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const rl = rateLimit(rateLimitKey(request));
+    const rl = await rateLimit(rateLimitKey(request));
     if (!rl.allowed) return rateLimitResponse(rl.remaining);
 
     const body = await request.json();
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const rl = rateLimit(rateLimitKey(request));
+    const rl = await rateLimit(rateLimitKey(request));
     if (!rl.allowed) return rateLimitResponse(rl.remaining);
 
     const body = await request.json();
@@ -294,7 +294,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const rl = rateLimit(rateLimitKey(request));
+    const rl = await rateLimit(rateLimitKey(request));
     if (!rl.allowed) return rateLimitResponse(rl.remaining);
 
     const body = await request.json();
