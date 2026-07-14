@@ -5,12 +5,24 @@ import { rateLimit } from "./rate-limit";
 import { logAuditEvent } from "./audit";
 
 export async function requireAdmin(request: Request): Promise<{ sub: string } | NextResponse> {
+  let token: string | null = null;
+
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else {
+    const cookieHeader = request.headers.get("cookie") || "";
+    const match = cookieHeader.match(/(?:^|;\s*)accessToken=([^;]*)/);
+    if (match) {
+      token = decodeURIComponent(match[1]);
+    }
+  }
+
+  if (!token) {
     return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required", requestId: crypto.randomUUID() } }, { status: 401 });
   }
 
-  const payload = await verifyAccessToken(authHeader.slice(7));
+  const payload = await verifyAccessToken(token);
   if (!payload) {
     return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Invalid or expired token", requestId: crypto.randomUUID() } }, { status: 401 });
   }

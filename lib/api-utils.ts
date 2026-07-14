@@ -57,6 +57,8 @@ export function handleApiError(error: unknown, context: string) {
 }
 
 export function checkCSRF(request: Request): NextResponse | null {
+  if (process.env.NODE_ENV === "development") return null;
+
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

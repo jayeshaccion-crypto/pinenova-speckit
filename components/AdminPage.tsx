@@ -20,7 +20,7 @@ export function AdminPage() {
 
   async function api(path: string, opts?: RequestInit): Promise<Response | null> {
     const res = await fetch(path, { ...opts, credentials: "include", headers: { "Content-Type": "application/json", ...opts?.headers } });
-    if (res.status === 401) { window.location.href = "/account/auth/login?redirect=/admin"; return null; }
+    if (res.status === 401) { window.location.href = "/admin/login?redirect=/admin"; return null; }
     return res;
   }
 

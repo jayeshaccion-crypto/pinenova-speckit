@@ -9,6 +9,7 @@ const publicPaths = [
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/admin/login",
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/refresh",
@@ -42,10 +43,15 @@ function buildCSP(nonce: string): string {
     "https://js.stripe.com",
     ...(isDev ? ["'unsafe-eval'"] : []),
   ].join(" ");
+  const styleSrc = [
+    "'self'",
+    ...(isDev ? ["'unsafe-inline'"] : [`'nonce-${nonce}'`]),
+    "https://fonts.googleapis.com",
+  ].join(" ");
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+    `style-src ${styleSrc}`,
     "img-src 'self' data: https://pinenova-assets.s3.amazonaws.com https://js.stripe.com",
     "font-src 'self' https://fonts.gstatic.com",
     "frame-src https://js.stripe.com https://hooks.stripe.com",
@@ -76,6 +82,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Content-Security-Policy", csp);
     response.headers.set("X-Content-Security-Policy", csp);
     response.headers.set("X-WebKit-CSP", csp);
+    response.headers.set("x-pathname", pathname);
     return response;
   }
 
@@ -89,6 +96,7 @@ export async function middleware(request: NextRequest) {
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     const response = NextResponse.next();
     response.headers.set("Content-Security-Policy", csp);
+    response.headers.set("x-pathname", pathname);
     Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
     return response;
   }
@@ -96,7 +104,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/admin")) {
     const token = request.cookies.get("accessToken")?.value;
     if (!token) {
-      const loginUrl = new URL("/account/auth/login", request.url);
+      const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
@@ -111,7 +119,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/?error=forbidden", request.url));
       }
     } catch {
-      const loginUrl = new URL("/account/auth/login", request.url);
+      const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
@@ -131,6 +139,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set("X-Content-Security-Policy", csp);
   response.headers.set("X-WebKit-CSP", csp);
   response.headers.set("x-nonce", nonce);
+  response.headers.set("x-pathname", pathname);
   Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
   if (pathname.startsWith("/admin")) {
     response.headers.set("Cache-Control", "no-store, private");
