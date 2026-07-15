@@ -1,22 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const SESSION_KEY = "pinenova_cart_sid";
 
-const TABS = [
-  { key: "products", label: "Products" },
-  { key: "orders", label: "Orders" },
-  { key: "inventory", label: "Inventory" },
-  { key: "discounts", label: "Discounts" },
-  { key: "metrics", label: "Metrics" },
-];
+const TAB_SECTIONS = ["products", "orders", "inventory", "discounts", "metrics", "users", "blog"] as const;
 
 export function AdminPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const tab = searchParams.get("tab") || "products";
+  const tab = TAB_SECTIONS.includes((searchParams.get("tab") || "products") as any)
+    ? (searchParams.get("tab") as typeof TAB_SECTIONS[number]) : "products";
 
   async function api(path: string, opts?: RequestInit): Promise<Response | null> {
     const res = await fetch(path, { ...opts, credentials: "include", headers: { "Content-Type": "application/json", ...opts?.headers } });
@@ -24,29 +18,26 @@ export function AdminPage() {
     return res;
   }
 
-  function switchTab(t: string) {
-    router.push(`/admin?tab=${t}`);
-  }
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-        <a href="/" className="text-sm text-primary hover:underline">View Store</a>
-      </div>
-      <div className="mb-6 flex gap-2 border-b border-primary/10 pb-2">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => switchTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${tab === t.key ? "border-b-2 border-primary text-foreground" : "text-foreground/50 hover:text-foreground"}`}>
-            {t.label}
-          </button>
-        ))}
+        <h1 className="text-2xl font-bold text-foreground">
+          {tab === "products" && "Products"}
+          {tab === "orders" && "Orders"}
+          {tab === "inventory" && "Inventory"}
+          {tab === "discounts" && "Discount Codes"}
+          {tab === "metrics" && "Dashboard"}
+          {tab === "users" && "Users"}
+          {tab === "blog" && "Blog Articles"}
+        </h1>
       </div>
       {tab === "products" && <AdminProductsTab api={api} />}
       {tab === "orders" && <AdminOrdersTab api={api} />}
       {tab === "inventory" && <AdminInventoryTab api={api} />}
       {tab === "discounts" && <AdminDiscountsTab api={api} />}
       {tab === "metrics" && <AdminMetricsTab api={api} />}
+      {tab === "users" && <AdminUsersTab api={api} />}
+      {tab === "blog" && <AdminBlogTab api={api} />}
     </div>
   );
 }
@@ -55,8 +46,7 @@ function AdminProductsTab({ api }: { api: (path: string, opts?: RequestInit) => 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -80,6 +70,18 @@ function AdminProductsTab({ api }: { api: (path: string, opts?: RequestInit) => 
     fetchProducts();
   }
 
+  async function handleImageUpload(productId: string, file: File) {
+    setUploadingId(productId);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("productId", productId);
+    try {
+      await fetch("/api/admin/products/images/upload", { method: "POST", body: formData, credentials: "include" });
+    } catch { /* ignore */ }
+    setUploadingId(null);
+    fetchProducts();
+  }
+
   if (loading) return <div className="text-sm text-foreground/50">Loading...</div>;
 
   return (
@@ -94,11 +96,29 @@ function AdminProductsTab({ api }: { api: (path: string, opts?: RequestInit) => 
       <div className="overflow-x-auto rounded-lg border border-primary/10">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-primary/10 bg-primary/5">
-            <tr><th className="p-3 font-medium text-foreground">Name</th><th className="p-3 font-medium text-foreground">SKU</th><th className="p-3 font-medium text-foreground">Price</th><th className="p-3 font-medium text-foreground">Stock</th><th className="p-3 font-medium text-foreground">Published</th><th className="p-3 font-medium text-foreground">Actions</th></tr>
+            <tr><th className="p-3 font-medium text-foreground">Image</th><th className="p-3 font-medium text-foreground">Name</th><th className="p-3 font-medium text-foreground">SKU</th><th className="p-3 font-medium text-foreground">Price</th><th className="p-3 font-medium text-foreground">Stock</th><th className="p-3 font-medium text-foreground">Published</th><th className="p-3 font-medium text-foreground">Actions</th></tr>
           </thead>
           <tbody>
             {products.map((p: any) => (
               <tr key={p.id} className="border-b border-primary/5 last:border-0">
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    {p.images?.[0]?.url ? (
+                      <img src={p.images[0].url} alt={p.name} className="h-10 w-10 rounded object-cover border border-primary/10" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded border border-dashed border-primary/20 bg-primary/5">
+                        <svg className="h-4 w-4 text-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <label className={`cursor-pointer text-xs text-primary hover:underline ${uploadingId === p.id ? "opacity-50 pointer-events-none" : ""}`}>
+                      {uploadingId === p.id ? "Uploading..." : "Upload"}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(p.id, f); e.target.value = ""; }} />
+                    </label>
+                  </div>
+                </td>
                 <td className="p-3 text-foreground">{p.name}</td>
                 <td className="p-3 text-foreground/50">{p.sku}</td>
                 <td className="p-3 text-foreground">${Number(p.price).toFixed(2)}</td>
@@ -164,6 +184,9 @@ function AdminOrdersTab({ api }: { api: (path: string, opts?: RequestInit) => Pr
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   function buildUrl(p: number) {
     const params = new URLSearchParams();
@@ -191,6 +214,8 @@ function AdminOrdersTab({ api }: { api: (path: string, opts?: RequestInit) => Pr
     fetchOrders(page);
   }, [page, filterStatus, filterDateFrom, filterDateTo, filterCustomer]);
 
+  useEffect(() => { setSelectedIds(new Set()); }, [orders]);
+
   function handleFilter() {
     setPage(1);
     setLoading(true);
@@ -215,6 +240,36 @@ function AdminOrdersTab({ api }: { api: (path: string, opts?: RequestInit) => Pr
     });
     if (!res) return;
     if (!res.ok) { const d = await res.json(); setError(d.error?.message || "Refund failed"); return; }
+    fetchOrders(page);
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)));
+    }
+  }
+
+  async function handleBulkUpdate() {
+    if (!bulkStatus || selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    setError("");
+    const res = await api("/api/admin/orders/bulk", {
+      method: "PATCH", body: JSON.stringify({ orderIds: Array.from(selectedIds), status: bulkStatus }),
+    });
+    if (!res) { setBulkProcessing(false); return; }
+    if (!res.ok) { const d = await res.json(); setError(d.error?.message || "Bulk update failed"); setBulkProcessing(false); return; }
+    setBulkProcessing(false);
+    setSelectedIds(new Set());
     fetchOrders(page);
   }
 
@@ -253,14 +308,42 @@ function AdminOrdersTab({ api }: { api: (path: string, opts?: RequestInit) => Pr
         <button onClick={handleFilter} className="btn-primary px-4 py-1.5 text-sm">Filter</button>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-primary/10 bg-primary/5 p-3">
+          <span className="text-sm text-foreground/70">{selectedIds.size} selected</span>
+          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="input-field text-sm">
+            <option value="">Bulk status...</option>
+            <option value="CONFIRMED">Confirm</option>
+            <option value="PROCESSING">Process</option>
+            <option value="SHIPPED">Ship</option>
+            <option value="DELIVERED">Deliver</option>
+            <option value="CANCELLED">Cancel</option>
+          </select>
+          <button onClick={handleBulkUpdate} disabled={!bulkStatus || bulkProcessing} className="btn-primary px-3 py-1 text-sm disabled:opacity-50">
+            {bulkProcessing ? "Updating..." : "Apply"}
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-xs text-foreground/50 hover:text-foreground">Clear</button>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-primary/10">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-primary/10 bg-primary/5">
-            <tr><th className="p-3 font-medium">Order #</th><th className="p-3 font-medium">Customer</th><th className="p-3 font-medium">Total</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium">Date</th><th className="p-3 font-medium">Actions</th></tr>
+            <tr>
+              <th className="p-3">
+                <input type="checkbox" checked={orders.length > 0 && selectedIds.size === orders.length}
+                  onChange={toggleSelectAll} className="h-4 w-4 rounded border-primary/30" aria-label="Select all" />
+              </th>
+              <th className="p-3 font-medium">Order #</th><th className="p-3 font-medium">Customer</th><th className="p-3 font-medium">Total</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium">Date</th><th className="p-3 font-medium">Actions</th>
+            </tr>
           </thead>
           <tbody>
             {orders.map((o: any) => (
-              <tr key={o.id} className="border-b border-primary/5 last:border-0">
+              <tr key={o.id} className={`border-b border-primary/5 last:border-0 ${selectedIds.has(o.id) ? "bg-primary/5" : ""}`}>
+                <td className="p-3">
+                  <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)}
+                    className="h-4 w-4 rounded border-primary/30" aria-label={`Select order ${o.orderNumber}`} />
+                </td>
                 <td className="p-3 text-foreground">{o.orderNumber}</td>
                 <td className="p-3 text-foreground/50">{o.user ? `${o.user.firstName} ${o.user.lastName}` : o.email || "Guest"}</td>
                 <td className="p-3 text-foreground">${Number(o.total).toFixed(2)}</td>
@@ -561,5 +644,174 @@ function AdminMetricsTab({ api }: { api: (path: string, opts?: RequestInit) => P
       )}
       <button onClick={downloadCSV} className="btn-primary px-4 py-2 text-sm">Download Orders CSV</button>
     </div>
+  );
+}
+
+function AdminUsersTab({ api }: { api: (path: string, opts?: RequestInit) => Promise<Response | null> }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    async function fetchUsers() {
+      setLoading(true);
+      try {
+        const params = search ? `?search=${encodeURIComponent(search)}` : "";
+        const res = await api(`/api/admin/users${params}`);
+        if (!res) return;
+        const data = await res.json();
+        setUsers(data.data?.data || []);
+      } catch { setError("Failed to load"); } finally { setLoading(false); }
+    }
+    fetchUsers();
+  }, [api, search]);
+
+  async function toggleRole(userId: string, currentRole: string) {
+    const newRole = currentRole === "ADMIN" ? "CUSTOMER" : "ADMIN";
+    const res = await api("/api/admin/users", {
+      method: "PATCH", body: JSON.stringify({ userId, role: newRole }),
+    });
+    if (!res) return;
+    if (!res.ok) { const d = await res.json(); setError(d.error?.message || "Failed"); return; }
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: newRole } : u));
+  }
+
+  async function toggleStatus(userId: string, currentStatus: string) {
+    const newStatus = currentStatus === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+    const res = await api("/api/admin/users", {
+      method: "PATCH", body: JSON.stringify({ userId, status: newStatus }),
+    });
+    if (!res) return;
+    if (!res.ok) { const d = await res.json(); setError(d.error?.message || "Failed"); return; }
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, status: newStatus } : u));
+  }
+
+  if (loading) return <div className="text-sm text-foreground/50">Loading...</div>;
+
+  return (
+    <div>
+      {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="mb-4">
+        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email..." className="input-field w-64 text-sm" />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-primary/10">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-primary/10 bg-primary/5">
+            <tr><th className="p-3 font-medium">Name</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Role</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium">2FA</th><th className="p-3 font-medium">Joined</th><th className="p-3 font-medium">Actions</th></tr>
+          </thead>
+          <tbody>
+            {users.map((u: any) => (
+              <tr key={u.id} className="border-b border-primary/5 last:border-0">
+                <td className="p-3 text-foreground">{u.firstName} {u.lastName}</td>
+                <td className="p-3 text-foreground/50">{u.email}</td>
+                <td className="p-3"><span className={`text-xs ${u.role === "ADMIN" ? "badge-blue" : "badge-gray"}`}>{u.role}</span></td>
+                <td className="p-3"><span className={`text-xs ${u.status === "ACTIVE" ? "text-green-600" : "text-red-600"}`}>{u.status}</span></td>
+                <td className="p-3 text-foreground/50">{u.totpEnabled ? "Yes" : "No"}</td>
+                <td className="p-3 text-foreground/50">{new Date(u.createdAt).toLocaleDateString()}</td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <button onClick={() => toggleRole(u.id, u.role)} className="text-xs text-primary hover:underline">
+                      {u.role === "ADMIN" ? "Remove Admin" : "Make Admin"}
+                    </button>
+                    <button onClick={() => toggleStatus(u.id, u.status)} className={`text-xs hover:underline ${u.status === "ACTIVE" ? "text-red-500" : "text-green-600"}`}>
+                      {u.status === "ACTIVE" ? "Suspend" : "Activate"}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AdminBlogTab({ api }: { api: (path: string, opts?: RequestInit) => Promise<Response | null> }) {
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showForm, setShowForm] = useState(false);
+
+  const fetchArticles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api("/api/blog?limit=50");
+      if (!res) return;
+      const data = await res.json();
+      setArticles(data.data || []);
+    } catch { setError("Failed to load"); } finally { setLoading(false); }
+  }, [api]);
+
+  useEffect(() => { fetchArticles(); }, [fetchArticles]);
+
+  async function createArticle(form: any) {
+    setError("");
+    const res = await api("/api/blog", { method: "POST", body: JSON.stringify(form) });
+    if (!res) return;
+    if (!res.ok) { const d = await res.json(); setError(d.error?.message || "Failed"); return; }
+    setShowForm(false);
+    fetchArticles();
+  }
+
+  if (loading) return <div className="text-sm text-foreground/50">Loading...</div>;
+
+  return (
+    <div>
+      {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-foreground/50">{articles.length} articles</p>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary px-4 py-1.5 text-sm">
+          {showForm ? "Cancel" : "New Article"}
+        </button>
+      </div>
+      {showForm && <BlogForm onSave={createArticle} />}
+      <div className="overflow-x-auto rounded-lg border border-primary/10">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-primary/10 bg-primary/5">
+            <tr><th className="p-3 font-medium">Title</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium">Published</th></tr>
+          </thead>
+          <tbody>
+            {articles.map((a: any) => (
+              <tr key={a.id} className="border-b border-primary/5 last:border-0">
+                <td className="p-3 text-foreground">{a.title}</td>
+                <td className="p-3"><span className={`text-xs ${a.status === "PUBLISHED" ? "text-green-600" : "badge-yellow"}`}>{a.status}</span></td>
+                <td className="p-3 text-foreground/50">{a.publishedAt ? new Date(a.publishedAt).toLocaleDateString() : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BlogForm({ onSave }: { onSave: (data: any) => void }) {
+  const [form, setForm] = useState({ title: "", body: "", metaDescription: "", featuredImage: "", status: "DRAFT" });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    await onSave({ ...form });
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mb-6 rounded-lg border border-primary/10 p-4 space-y-3">
+      <div><label className="mb-1 block text-xs text-foreground/50">Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field w-full text-sm" required /></div>
+      <div><label className="mb-1 block text-xs text-foreground/50">Meta Description</label><input value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} className="input-field w-full text-sm" /></div>
+      <div><label className="mb-1 block text-xs text-foreground/50">Featured Image URL</label><input value={form.featuredImage} onChange={(e) => setForm({ ...form, featuredImage: e.target.value })} className="input-field w-full text-sm" /></div>
+      <div><label className="mb-1 block text-xs text-foreground/50">Body (HTML/Markdown)</label><textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className="input-field w-full text-sm" rows={6} required /></div>
+      <div><label className="mb-1 block text-xs text-foreground/50">Status</label>
+        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="input-field text-sm">
+          <option value="DRAFT">Draft</option>
+          <option value="PUBLISHED">Published</option>
+        </select>
+      </div>
+      <button type="submit" disabled={saving} className="btn-primary px-4 py-1.5 text-sm">{saving ? "Saving..." : "Create Article"}</button>
+    </form>
   );
 }

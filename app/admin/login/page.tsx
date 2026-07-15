@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      if (data.requires2FA) {
+      if (data.requiresTwoFactor) {
         router.push(`/account/auth/2fa/challenge?tempToken=${data.tempToken}&redirect=${encodeURIComponent(redirect)}`);
         return;
       }

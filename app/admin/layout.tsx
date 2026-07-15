@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { verifyAccessToken } from "@/lib/auth";
+import { AdminSidebar } from "@/components/AdminSidebar";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
@@ -20,5 +21,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     }
   }
 
-  return <>{children}</>;
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex">
+      <AdminSidebar />
+      <main className="flex-1 min-h-screen">
+        {children}
+      </main>
+    </div>
+  );
 }
