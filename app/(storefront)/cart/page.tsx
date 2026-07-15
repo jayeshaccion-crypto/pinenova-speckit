@@ -33,15 +33,6 @@ interface CartResponse {
 
 const SESSION_KEY = "pinenova_cart_sid";
 
-function getSessionId(): string {
-  let sid = localStorage.getItem(SESSION_KEY);
-  if (!sid) {
-    sid = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, sid);
-  }
-  return sid;
-}
-
 async function fetchCart(): Promise<CartResponse> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const sid = localStorage.getItem(SESSION_KEY);
@@ -88,6 +79,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [discountCode, setDiscountCode] = useState("");
+  const [shippingZip, setShippingZip] = useState("");
 
   const loadCart = useCallback(async () => {
     try {
@@ -150,7 +142,12 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-foreground">Shopping Cart</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Shopping Cart</h1>
+        <Link href="/products" className="text-sm text-primary hover:underline">
+          Continue Shopping
+        </Link>
+      </div>
 
       {error && (
         <div className="card mt-4 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -174,6 +171,20 @@ export default function CartPage() {
         </div>
         <div className="space-y-4">
           <CartDiscountCode code={discountCode} onChange={setDiscountCode} />
+          <div className="card p-4">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">Shipping Estimate</h3>
+            <input
+              type="text"
+              inputMode="text"
+              placeholder="Enter ZIP code"
+              maxLength={10}
+              value={shippingZip}
+              onChange={(e) => setShippingZip(e.target.value.replace(/[^0-9-]/g, ""))}
+              className="input-field w-full text-sm"
+              aria-label="Shipping ZIP code"
+            />
+            <p className="mt-1 text-xs text-foreground/50">Enter your ZIP for a shipping estimate at checkout.</p>
+          </div>
           <CartSummary subtotal={cart.subtotal} itemCount={cart.itemCount} discountCode={discountCode} />
         </div>
       </div>

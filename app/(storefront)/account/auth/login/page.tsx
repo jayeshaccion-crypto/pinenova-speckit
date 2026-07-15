@@ -3,11 +3,13 @@
 import { Suspense, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ToastProvider";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/account";
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -36,6 +38,19 @@ function LoginForm() {
       if (data.requiresTwoFactor) {
         router.push(`/account/auth/2fa/challenge?tempToken=${encodeURIComponent(data.tempToken)}&redirect=${encodeURIComponent(redirect)}&rememberMe=${rememberMe}`);
         return;
+      }
+
+      const sid = localStorage.getItem("pinenova_cart_sid");
+      if (sid) {
+        try {
+          const cartRes = await fetch("/api/cart", { headers: { "x-session-id": sid } });
+          const cartData = await cartRes.json();
+          if (cartData.itemCount > 0) {
+            showToast("Your guest cart has been merged", "info");
+          }
+        } catch {
+          // ignore
+        }
       }
 
       router.push(redirect);
