@@ -25,6 +25,7 @@ export const RegisterSchema = z.object({
 export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export const SocialLoginSchema = z.object({
@@ -283,6 +284,7 @@ export const TwoFactorDisableSchema = z.object({
 export const TwoFactorChallengeSchema = z.object({
   tempToken: z.string().min(1),
   token: z.string().length(6).regex(/^\d{6}$/),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 // ─── Admin User Management ───

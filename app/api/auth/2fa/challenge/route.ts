@@ -5,9 +5,12 @@ import { apiError, apiSuccess, handleApiError } from "@/lib/api-utils";
 import { TwoFactorChallengeSchema } from "@/types";
 import { verifyTotp } from "@/lib/totp";
 
-async function issueTokens(user: { id: string; email: string; firstName: string; lastName: string; role: string }) {
+async function issueTokens(user: { id: string; email: string; firstName: string; lastName: string; role: string }, rememberMe: boolean = false) {
   const accessToken = await signAccessToken({ sub: user.id, role: user.role });
   const refreshToken = await signRefreshToken(user.id);
+
+  const accessTokenMaxAge = rememberMe ? 60 * 60 * 24 * 7 : 60 * 15;
+  const refreshTokenMaxAge = rememberMe ? 60 * 60 * 24 * 30 : 7 * 24 * 60 * 60;
 
   logger.info({ userId: user.id }, "2FA challenge passed — tokens issued");
   const response = apiSuccess({ accessToken, refreshToken, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role } });
@@ -16,14 +19,14 @@ async function issueTokens(user: { id: string; email: string; firstName: string;
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 15,
+    maxAge: accessTokenMaxAge,
   });
   response.cookies.set("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/api/auth",
-    maxAge: 7 * 24 * 60 * 60,
+    maxAge: refreshTokenMaxAge,
   });
   return response;
 }
@@ -36,7 +39,8 @@ export async function POST(request: Request) {
       return apiError("VALIDATION_ERROR", "Valid temp token and verification code are required", 400);
     }
 
-    const tempPayload = await verifyAccessToken(parsed.data.tempToken);
+    const { tempToken, token, rememberMe } = parsed.data;
+    const tempPayload = await verifyAccessToken(tempToken);
     if (!tempPayload) {
       return apiError("INVALID_TOKEN", "Invalid or expired temp token. Please login again.", 401);
     }
@@ -54,12 +58,12 @@ export async function POST(request: Request) {
       return apiError("BAD_REQUEST", "Two-factor authentication is not enabled on this account. Please login again.", 400);
     }
 
-    if (!(await verifyTotp(parsed.data.token, user.totpSecret!))) {
+    if (!(await verifyTotp(token, user.totpSecret!))) {
       logger.warn({ userId: user.id }, "2FA challenge failed — invalid code");
       return apiError("INVALID_TOKEN", "Invalid verification code", 401);
     }
 
-    return issueTokens(user);
+    return issueTokens(user, rememberMe);
   } catch (error) {
     logger.error({ error }, "2FA challenge failed");
     return handleApiError(error, "2fa-challenge");

@@ -134,6 +134,32 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname === "/account/auth/2fa/challenge") {
+    const token = request.cookies.get("accessToken")?.value;
+    if (token) {
+      try {
+        const secretKey = process.env.JWT_SECRET;
+        if (secretKey) {
+          const secret = new TextEncoder().encode(secretKey);
+          const { payload } = await jwtVerify(token, secret);
+          if ((payload as any).role !== "2FA_PENDING") {
+            const response = NextResponse.redirect(new URL("/account", request.url));
+            response.headers.set("Content-Security-Policy", csp);
+            Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
+            return response;
+          }
+        }
+      } catch {
+        // Expired/invalid — allow challenge page to render
+      }
+    }
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", csp);
+    response.headers.set("x-pathname", pathname);
+    Object.entries(SECURITY_HEADERS_BASE).forEach(([key, value]) => response.headers.set(key, value));
+    return response;
+  }
+
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", csp);
   response.headers.set("X-Content-Security-Policy", csp);

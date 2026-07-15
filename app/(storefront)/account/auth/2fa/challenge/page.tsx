@@ -15,6 +15,7 @@ function TwoFAChallengeForm() {
 
   const tempToken = searchParams.get("tempToken");
   const redirect = searchParams.get("redirect") || "/account";
+  const rememberMe = searchParams.get("rememberMe") === "true";
 
   const handleChallenge = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,7 +33,7 @@ function TwoFAChallengeForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ token, tempToken }),
+        body: JSON.stringify({ token, tempToken, rememberMe }),
       });
 
       const data = await res.json();

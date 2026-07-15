@@ -1,4 +1,4 @@
-# Essilor Lens Exception Dashboard Constitution
+# PineNova Constitution
 
 ## Core Principles
 

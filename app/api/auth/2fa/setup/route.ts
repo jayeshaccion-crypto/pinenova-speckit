@@ -5,6 +5,7 @@ import { getAuthUser } from "@/lib/api-utils";
 import { apiError, apiSuccess, handleApiError, checkCSRF } from "@/lib/api-utils";
 import { TwoFactorSetupSchema } from "@/types";
 import { generateTotpSecret, generateQrCode } from "@/lib/totp";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -43,8 +44,10 @@ export async function POST(request: Request) {
 
     const qrCode = await generateQrCode(secret, user.email);
 
+    const backupCodes = Array.from({ length: 8 }, () => crypto.randomBytes(4).toString("hex"));
+
     logger.info({ userId: auth.sub }, "2FA setup initiated");
-    return apiSuccess({ secret, qrCode });
+    return apiSuccess({ secret, qrCode, backupCodes });
   } catch (error) {
     logger.error({ error }, "2FA setup failed");
     return handleApiError(error, "2fa-setup");

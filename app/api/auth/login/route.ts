@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password } = parsed.data;
+    const { email, password, rememberMe } = parsed.data;
     const ip = request.headers.get("x-forwarded-for") || "unknown";
 
     const rl = await rateLimit(`login:${email}`, { max: 10, windowMs: 60000 });
@@ -61,19 +61,21 @@ export async function POST(request: Request) {
       refreshToken,
       user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
     });
+    const accessTokenMaxAge = rememberMe ? 60 * 60 * 24 * 7 : 60 * 15;
+    const refreshTokenMaxAge = rememberMe ? 60 * 60 * 24 * 30 : 7 * 24 * 60 * 60;
     response.cookies.set("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 15,
+      maxAge: accessTokenMaxAge,
     });
     response.cookies.set("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/api/auth",
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: refreshTokenMaxAge,
     });
     return response;
   } catch (error) {

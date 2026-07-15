@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -17,6 +18,11 @@ export default function RegisterPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!agreeTerms) {
+      setError("You must agree to the Terms & Conditions");
+      return;
+    }
 
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
@@ -84,6 +90,26 @@ export default function RegisterPage() {
           <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-foreground">Confirm Password</label>
           <input id="confirmPassword" type="password" required value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)}
             className="input-field w-full" />
+        </div>
+
+        <div className="flex items-start gap-2">
+          <input
+            id="agreeTerms"
+            type="checkbox"
+            checked={agreeTerms}
+            onChange={(e) => setAgreeTerms(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="agreeTerms" className="text-sm text-muted-foreground">
+            I agree to the{" "}
+            <a href="/terms" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Terms & Conditions
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </a>
+          </label>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
